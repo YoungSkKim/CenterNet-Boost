@@ -54,6 +54,7 @@ class GenericLoss(torch.nn.Module):
   def forward(self, outputs, batch):
     opt = self.opt
     losses = {head: 0 for head in opt.heads}
+    if opt.auxdep: losses.update({'auxdep': 0})
 
     for s in range(opt.num_stacks):
       output = outputs[s]
@@ -67,7 +68,7 @@ class GenericLoss(torch.nn.Module):
           output['hm'], batch['hm'], batch['ind'], 
           batch['mask'], batch['cat']) / opt.num_stacks
 
-      if self.opt.eval_depth:
+      if opt.eval_depth:
         depth_gt_all = batch['auxdep'] * batch['auxdep_mask'][:, :, :, 0].unsqueeze(0)
         depth_gt_obj = batch['auxdep'] * batch['auxdep_mask'][:, :, :, 1].unsqueeze(0)
 
@@ -101,29 +102,29 @@ class GenericLoss(torch.nn.Module):
         dep_pred = _tranpose_and_gather_feat(output['dep'], batch['ind'])
         dep_gt = batch['dep']
         loss = self.l1loss(dep_pred * batch['dep_mask'], dep_gt * batch['dep_mask'])
-        if self.opt.focaldep:
+        if opt.focaldep:
           dep_delta = torch.clamp(torch.abs(dep_pred - dep_gt), 0, opt.deperror_clamp[1])
           target = torch.pow((1 + opt.focaldep_alpha * dep_delta / (dep_gt + 1e-4)), opt.focaldep_gamma)
           loss = loss * target
         losses['dep'] += loss.sum() / (batch['dep_mask'].sum() + 1e-4)
 
-      if self.opt.auxdep:
+      if opt.auxdep:
         loss = self.l1loss(output['dep'].squeeze()*batch['auxdep_mask'],
                            batch['auxdep'].squeeze()*batch['auxdep_mask']) / opt.num_stacks
         losses['auxdep'] += loss.sum() / (batch['auxdep_mask'].sum() + 1e-4)
 
-      if self.opt.depconf:
-        if self.opt.auxdep:
+      if opt.depconf:
+        if opt.auxdep:
           dep_delta = torch.abs(output['dep'].squeeze()*batch['auxdep_mask'] - \
                                 batch['auxdep'].squeeze()*batch['auxdep_mask'])
           target = torch.clamp(dep_delta, opt.deperror_clamp[0], opt.deperror_clamp[1])
-          target = torch.exp(-1*opt.depconf_beta*target)
+          target = torch.exp(-1*opt.depconf_beta*(target-opt.deperror_clamp[0]))
           pred = output['depconf'].squeeze(1)
           loss = self.l1loss(pred * batch['auxdep_mask'], target * batch['auxdep_mask'])
           losses['depconf'] += loss.sum() / (batch['auxdep_mask'].sum() + 1e-4)
         else:
-          dep_diff = torch.abs(_tranpose_and_gather_feat(output['dep'], batch['ind']) - batch['dep'])
-          target = torch.clamp(dep_diff, opt.depconf_min, opt.depconf_max)
+          dep_delta = torch.abs(_tranpose_and_gather_feat(output['dep'], batch['ind']) - batch['dep'])
+          target = torch.clamp(dep_delta, opt.deperror_clamp[0], opt.deperror_clamp[1])
           target = torch.exp(-1*opt.depconf_beta*target)
           pred = _tranpose_and_gather_feat(output['depconf'], batch['ind'])
           loss = self.l1loss(pred * batch['dep_mask'], target * batch['dep_mask'])
@@ -139,7 +140,6 @@ class GenericLoss(torch.nn.Module):
           output['rot'], batch['rot_mask'], batch['ind'], batch['rotbin'],
           batch['rotres']) / opt.num_stacks
 
-        # Loss for RoI
         sample = self.proposal_target_creator(output, batch)
         heads_roi = [head for head in sample['output']]
         for head in heads_roi + ['num_pos', 'num_neg', 'num_gt', 'dep']:
@@ -155,11 +155,9 @@ class GenericLoss(torch.nn.Module):
                                       sample['batch']['rotbin'].unsqueeze(0), sample['batch']['rotres'].unsqueeze(0),
                                       torch.ones(1, sample['num_pos'], dtype=torch.float32, device=self.opt.device))
               losses['rot'] += loss
-
             if head == 'cls':
               loss = self.bceloss(sample['output']['cls'].view(-1), sample['batch']['cls'].view(-1).float()).sum()
               losses['cls'] += loss / (sample['num_pos'] + sample['num_neg'] + 1e-4)
-
             if head == 'dep':
               loss = F.smooth_l1_loss(sample['output'][head].view(1, -1),
                                       sample['batch'][head].view(1, -1), reduction='sum')
@@ -307,6 +305,7 @@ class Trainer(object):
       'hp_offset', 'dep', 'dim', 'rot', 'amodel_offset', 'auxdep', 'extdep', 'depconf',\
       'ltrb_amodel', 'tracking', 'nuscenes_att', 'velocity']
     loss_states = ['tot'] + [k for k in loss_order if k in opt.heads]
+    if opt.auxdep: loss_states += ['auxdep']
     if opt.task == 'ddd_twostage':
       loss_states += ['num_pos', 'num_neg', 'num_gt']
     loss = GenericLoss(opt)
