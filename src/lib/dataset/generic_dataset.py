@@ -217,15 +217,16 @@ class GenericDataset(data.Dataset):
     depth = cv2.warpAffine(depth, trans_input,
                            (self.opt.input_w, self.opt.input_h),
                            flags=cv2.INTER_NEAREST)
+    depth = (depth / 256.).astype(np.float32)
+    depth[depth == 0] = 99
     if not self.opt.eval_depth:
       depth = depth[:self.opt.input_h, :self.opt.input_w].reshape(
         self.opt.output_h, self.opt.down_ratio,
-        self.opt.output_w, self.opt.down_ratio).max(axis=(1, 3))
-    depth = (depth / 256.).astype(np.float32)
-    depth[depth >= 60] = 0.
+        self.opt.output_w, self.opt.down_ratio).min(axis=(1, 3))
+    depth[depth >= 60] = 0
     depth *= aug_s
 
-    depth_mask = (depth > 0.).astype(np.float32)
+    depth_mask = (depth > 0).astype(np.float32)
 
     depth = depth + self.opt.auxdep_offset
     depth = depth * depth_mask
