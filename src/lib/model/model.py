@@ -97,5 +97,5 @@ def save_model(path, epoch, model, optimizer=None):
           'state_dict': state_dict}
   if not (optimizer is None):
     data['optimizer'] = optimizer.state_dict()
-  torch.save(data, path)
+  torch.save(data, path, _use_new_zipfile_serialization=False)
 
