@@ -10,7 +10,7 @@ sys.path.append("./lib/model/networks/DCNv2")
 
 import torch
 import torch.utils.data
-from opts_kitti import opts
+from opts import opts
 from model.model import create_model, load_model, save_model
 from model.data_parallel import DataParallel
 from logger import Logger
@@ -101,7 +101,7 @@ def main(opt):
     logger.write('\n')
     if epoch in opt.save_point:
       save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(epoch)), 
-                 epoch, model, optimizer)
+                 epoch, model, optimizer=None)
     if epoch in opt.lr_step:
       lr = opt.lr * (opt.lr_factor ** (opt.lr_step.index(epoch) + 1))
       print('Drop LR to', lr)

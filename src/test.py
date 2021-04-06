@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import _init_paths
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 import sys
 sys.path.append("./lib/model/networks/DCNv2")
 import json
@@ -15,7 +15,7 @@ from progress.bar import Bar
 import torch
 import copy
 
-from opts_kitti import opts
+from opts import opts
 from logger import Logger
 from utils.utils import AverageMeter
 from dataset.dataset_factory import dataset_factory
