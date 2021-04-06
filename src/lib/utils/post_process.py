@@ -50,8 +50,6 @@ def generic_post_process(
         bbox = transform_preds_with_trans(
           dets['bboxes'][i][j].reshape(2, 2), trans).reshape(4)
         item['bbox'] = bbox
-        if opt.remove_dontcare:
-          if bbox[3] - bbox[1] < 20: break
 
       if 'hps' in dets:
         pts = transform_preds_with_trans(
