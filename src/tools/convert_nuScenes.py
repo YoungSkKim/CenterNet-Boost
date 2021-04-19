@@ -25,14 +25,11 @@ OUT_PATH = DATA_PATH + 'annotations/'
 SPLITS = {'train': 'v1.0-trainval'}
 DEBUG = False
 CATS = ['car', 'truck', 'bus', 'trailer', 'construction_vehicle', 
-                   'pedestrian', 'motorcycle', 'bicycle',
-                   'traffic_cone', 'barrier']
-SENSOR_ID = {'RADAR_FRONT': 7, 'RADAR_FRONT_LEFT': 9, 
-  'RADAR_FRONT_RIGHT': 10, 'RADAR_BACK_LEFT': 11, 
-  'RADAR_BACK_RIGHT': 12,  'LIDAR_TOP': 8, 
-  'CAM_FRONT': 1, 'CAM_FRONT_RIGHT': 2, 
-  'CAM_BACK_RIGHT': 3, 'CAM_BACK': 4, 'CAM_BACK_LEFT': 5,
-  'CAM_FRONT_LEFT': 6}
+        'pedestrian', 'motorcycle', 'bicycle', 'traffic_cone', 'barrier']
+SENSOR_ID = {'RADAR_FRONT': 7, 'RADAR_FRONT_LEFT': 9, 'RADAR_FRONT_RIGHT': 10,
+             'RADAR_BACK_LEFT': 11, 'RADAR_BACK_RIGHT': 12,  'LIDAR_TOP': 8,
+             'CAM_FRONT': 0, 'CAM_FRONT_LEFT': 1, 'CAM_FRONT_RIGHT': 2,
+             'CAM_BACK_LEFT': 3, 'CAM_BACK_RIGHT': 4, 'CAM_BACK': 5}
 
 USED_SENSOR = ['CAM_FRONT', 'CAM_FRONT_RIGHT', 
   'CAM_BACK_RIGHT', 'CAM_BACK', 'CAM_BACK_LEFT',
@@ -58,7 +55,7 @@ def _bbox_inside(box1, box2):
          box1[1] > box2[1] and box1[1] + box1[3] < box2[1] + box2[3] 
 
 ATTRIBUTE_TO_ID = {
-  '': 0, 'cycle.with_rider' : 1, 'cycle.without_rider' : 2,
+  '': 0, 'cycle.with_rider': 1, 'cycle.without_rider': 2,
   'pedestrian.moving': 3, 'pedestrian.standing': 4, 
   'pedestrian.sitting_lying_down': 5,
   'vehicle.moving': 6, 'vehicle.parked': 7, 
@@ -68,7 +65,7 @@ def main():
   SCENE_SPLITS['mini-val'] = SCENE_SPLITS['val']
   idx_local = 0
   cnt = 0
-  split_ratio = 8
+  split_ratio = 1
   if not os.path.exists(OUT_PATH):
     os.mkdir(OUT_PATH)
   for split in SPLITS:

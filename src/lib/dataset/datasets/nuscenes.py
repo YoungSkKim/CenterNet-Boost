@@ -20,6 +20,7 @@ from utils.ddd_utils import compute_box_3d, project_to_image
 class nuScenes(GenericDataset):
   default_resolution = [448, 800]
   num_categories = 10
+  NUM_SAMPLE = 34149
   class_name = [
     'car', 'truck', 'bus', 'trailer', 
     'construction_vehicle', 'pedestrian', 'motorcycle', 'bicycle',
@@ -38,7 +39,6 @@ class nuScenes(GenericDataset):
     'vehicle.moving': 6, 'vehicle.parked': 7, 
     'vehicle.stopped': 8}
   id_to_attribute = {v: k for k, v in attribute_to_id.items()}
-  sensor_ids = {1: 0, 2: 2, 3: 4, 4: 5, 5: 3, 6: 1}
 
   def __init__(self, opt, split):
     split_names = {'train': 'train', 'val': 'val'}
