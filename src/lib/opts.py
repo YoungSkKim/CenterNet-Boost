@@ -120,11 +120,11 @@ class opts(object):
     self.parser.add_argument('--lr', type=float, default=1.25e-4,
                              help='learning rate for batch size 32.')
     self.parser.add_argument('--weight_decay', type=float, default=0)
-    self.parser.add_argument('--lr_warmup', default=False,
+    self.parser.add_argument('--lr_warmup', type=self.str2bool, default=False,
                              help='warmup learning rate.')
     self.parser.add_argument('--lr_warmup_epoch', type=float, default=1,
                              help='warmup epoch.')
-    self.parser.add_argument('--lr_step', type=str, default='60,120',
+    self.parser.add_argument('--lr_step', type=str, default='60',
                              help='drop learning rate at step.')
     self.parser.add_argument('--lr_factor', type=float, default=0.1,
                              help='drop learning rate by factor.')
@@ -132,7 +132,7 @@ class opts(object):
                              help='when to save the model to disk.')
     self.parser.add_argument('--num_epochs', type=int, default=70,
                              help='total training epochs.')
-    self.parser.add_argument('--batch_size', type=int, default=2,
+    self.parser.add_argument('--batch_size', type=int, default=1,
                              help='batch size')
     self.parser.add_argument('--master_batch_size', type=int, default=-1,
                              help='batch size on the master gpu.')
@@ -140,9 +140,8 @@ class opts(object):
                              help='default: #samples / batch_size.')
     self.parser.add_argument('--val_intervals', type=int, default=999,
                              help='number of epochs to run validation.')
-    self.parser.add_argument('--trainval', type=self.str2bool, default=False,  #if True: testset
-                             help='include validation in training and '
-                                  'test on test set')
+    self.parser.add_argument('--trainval', type=self.str2bool, default=False,
+                             help='include validation in training and test on test set')
     self.parser.add_argument('--ltrb', action='store_true', help='')
     self.parser.add_argument('--ltrb_weight', type=float, default=0.1, help='')
     self.parser.add_argument('--reset_hm', action='store_true')
@@ -151,7 +150,7 @@ class opts(object):
     self.parser.add_argument('--dense_reg', type=int, default=1, help='')
 
     # test
-    self.parser.add_argument('--flip_test', type=self.str2bool, default=True,
+    self.parser.add_argument('--flip_test', type=self.str2bool, default=False,
                              help='flip data augmentation.')
     self.parser.add_argument('--test_scales', type=str, default='1',
                              help='multi scale test augmentation.')
@@ -181,8 +180,9 @@ class opts(object):
     # self.parser.add_argument('--vis_gt_bev', default='../vis/bird_pred_gt', help='')
     self.parser.add_argument('--vis_gt_bev', default='', help='')
     self.parser.add_argument('--kitti_split', default='3dop',
-                             help='different validation split for kitti: '
-                                  '3dop | subcnn')
+                             help='different validation split for kitti: 3dop | subcnn')
+    self.parser.add_argument('--nuscenes_interval', type=int, default=1,
+                             help='data sampling ratio for faster training')
     self.parser.add_argument('--test_focal_length', type=int, default=-1)
 
     # dataset
@@ -209,7 +209,7 @@ class opts(object):
     self.parser.add_argument('--no_color_aug', action='store_true',
                              help='not use the color augmenation '
                                   'from CornerNet')
-    # Tracking
+    # tracking
     self.parser.add_argument('--tracking', action='store_true')
     self.parser.add_argument('--pre_hm', action='store_true')
     self.parser.add_argument('--same_aug_pre', action='store_true')
@@ -270,9 +270,9 @@ class opts(object):
 
     self.parser.add_argument('--focaldep', type=self.str2bool, default=True,
                              help='enable focal depth loss.')
-    self.parser.add_argument('--focaldep_alpha', type=float, default=0,
+    self.parser.add_argument('--focaldep_alpha', type=float, default=0.5,
                              help='balancing parameter.')
-    self.parser.add_argument('--focaldep_gamma', type=float, default=0,
+    self.parser.add_argument('--focaldep_gamma', type=float, default=2,
                              help='balancing parameter.')
 
     self.parser.add_argument('--depconf', type=self.str2bool, default=True,
@@ -282,28 +282,37 @@ class opts(object):
     self.parser.add_argument('--depconf_beta', type=float, default=2.0,
                              help='balancing parameter.')
 
-    self.parser.add_argument('--deperror_clamp', type=float, default=[0.2, 2],
+    self.parser.add_argument('--deperror_clamp', type=str, default='0.1,1',
                              help='clamp depth error for training stability.')
 
+    # CenterNet-Boost-V2
+    self.parser.add_argument('--set_amodal_center', type=self.str2bool, default=True,
+                             help='set projected 3D center as center point rather than center of 2D bounding box.')
+    self.parser.add_argument('--discard_distant', type=float, default=60,
+                             help='discard distant instance farther than certain range, set -1 to disable')
+
+    # configs for experiments
     self.parser.add_argument('--skip_load', default=[],
-                             help='skip loading parameters from pre-trained model.')
-    # e.g., ['dep', 'dim'] to train dep, dim from init
+                             help='skip loading parameters from pre-trained model.'
+                                  "e.g., ['dep', 'dim'] to train dep, dim from init")
 
     self.parser.add_argument('--freeze_weight', type=self.str2bool, default=False)
-    self.parser.add_argument('--freeze_weight_skip', default=[],
-                             help='freeze branch from pre-trained model.', nargs='+')
-    # e.g., ['dep'] to freeze dep branch while training
+    self.parser.add_argument('--freeze_weight_skip', default=[], nargs='+',
+                             help='freeze branch from pre-trained model.'
+                                  "e.g., ['dep'] to freeze dep branch while training")
 
     self.parser.add_argument('--reuse_hm', type=self.str2bool, default=True)
-    self.parser.add_argument('--reuse_hm_order', default=[5, 0, 7], action='store_true',  # [ped, car, cyc] in ns
-                             help='reuse heatmap branch from pre-trained model.')
-    # load KITTI 3 classes ['ped', 'car', 'bicycle'] by using [5, 0, 7] from nuScenes 10 classes
-    # ['car', 'truck', 'bus', 'trailer', 'const_vehicle', 'ped', 'motorcycle', 'bicycle', 'traffic_cone', 'barrier']
+    self.parser.add_argument('--reuse_hm_order', type=str, default='5,0,7',
+                             help='reuse heatmap branch from pre-trained model on nuScenes.'
+                                  "e.g., '5,0,7' to load 'ped','car','bicycle' and '0' to load 'car'"
+                                  "'car','truck','bus','trailer','const_vehicle',"
+                                  "'ped','motorcycle','bicycle','traffic_cone','barrier'")
 
     self.parser.add_argument('--remove_dontcare', type=self.str2bool, default=False,
                              help='remove object smaller than 20 pixels height.')
 
-    self.parser.add_argument('--eval_depth', default=False, help='evaluate depth prediction performance.')
+    self.parser.add_argument('--eval_depth', default=False,
+                             help='evaluate depth prediction performance.')
 
     # custom dataset
     self.parser.add_argument('--custom_dataset_img_path', default='')
@@ -329,6 +338,8 @@ class opts(object):
     opt.ignore_loaded_cats = \
       [int(i) for i in opt.ignore_loaded_cats.split(',')] \
       if opt.ignore_loaded_cats != '' else []
+    opt.deperror_clamp = [float(i) for i in opt.deperror_clamp.split(',')]
+    opt.reuse_hm_order = [int(i) for i in opt.reuse_hm_order.split(',')]
 
     opt.pre_img = False
     if 'tracking' in opt.task:

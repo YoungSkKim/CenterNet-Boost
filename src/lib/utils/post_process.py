@@ -67,14 +67,19 @@ def generic_post_process(
       
       if 'rot' in dets and 'dep' in dets and 'dim' in dets \
         and len(dets['dep'][i]) > j:
-        if 'amodel_offset' in dets and len(dets['amodel_offset'][i]) > j:
-          ct_output = dets['bboxes'][i][j].reshape(2, 2).mean(axis=0)
-          amodel_ct_output = ct_output + dets['amodel_offset'][i][j]
+        if opt.set_amodal_center:
+          amodel_ct_output = dets['amodel_center'][i][j]
           ct = transform_preds_with_trans(
             amodel_ct_output.reshape(1, 2), trans).reshape(2).tolist()
         else:
-          bbox = item['bbox']
-          ct = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
+          if 'amodel_offset' in dets and len(dets['amodel_offset'][i]) > j:
+            ct_output = dets['bboxes'][i][j].reshape(2, 2).mean(axis=0)
+            amodel_ct_output = ct_output + dets['amodel_offset'][i][j]
+            ct = transform_preds_with_trans(
+              amodel_ct_output.reshape(1, 2), trans).reshape(2).tolist()
+          else:
+            bbox = item['bbox']
+            ct = [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2]
         item['ct'] = ct
         item['loc'], item['rot_y'] = ddd2locrot(
           ct, item['alpha'], item['dim'], item['dep'], calibs[i])

@@ -128,6 +128,8 @@ class BaseModel(nn.Module):
                       kernel_size=1, stride=1, padding=0, bias=True)
                   if 'hm' in head:
                     fc.bias.data.fill_(opt.prior_bias)
+                  elif 'depconf' in head:
+                    fc[-1].bias.data.fill_(0)
                   else:
                     fill_fc_weights(fc)
                 self.__setattr__(head, fc)

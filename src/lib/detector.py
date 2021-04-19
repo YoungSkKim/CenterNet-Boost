@@ -309,7 +309,7 @@ class Detector(object):
     if 'dep' in output and not 'dep' in ignore:
       output['dep'] = 1. / (output['dep'].sigmoid() + 1e-6) - 1.
       output['dep'] *= self.opt.depth_scale
-      output['dep'] = torch.clamp(output['dep'], min=0.01, max=60)
+      # output['dep'] = torch.clamp(output['dep'], min=0.01, max=60)  # TODO: Temp disable for test
     if 'depconf' in output and not 'depconf' in ignore:
       output['depconf'] = torch.clamp(output['depconf'].sigmoid_(), min=0.01, max=0.99)
     return output

@@ -102,10 +102,21 @@ def generic_decode(output, K=100, opt=None, skip=[]):
   if opt.twostage:
     ret.update({'ind': inds})
 
+  regression_heads = ['tracking', 'dep', 'rot', 'dim', 'amodel_offset',
+                      'nuscenes_att', 'velocity']
+
+  for head in regression_heads:
+    if head in output:
+      if not head in skip:
+        ret[head] = _tranpose_and_gather_feat(
+          output[head], inds).view(batch, K, -1)
+      else:
+        ret[head] = output[head]
+
   if 'depconf' in output:
     depconf = output['depconf']
     depconf = _tranpose_and_gather_feat(depconf, inds).view(batch, K)
-    ret.update({'depconf': depconf})
+    ret['depconf'] = depconf
 
   if 'reg' in output:
     reg = output['reg']
@@ -116,6 +127,11 @@ def generic_decode(output, K=100, opt=None, skip=[]):
   else:
     xs = xs0.view(batch, K, 1) + 0.5
     ys = ys0.view(batch, K, 1) + 0.5
+
+  if opt.set_amodal_center:
+    ret['amodel_center'] = torch.cat([xs, ys], dim=2)
+    xs = xs0.view(batch, K, 1) + ret['amodel_offset'][:, :, 0:1]
+    ys = ys0.view(batch, K, 1) + ret['amodel_offset'][:, :, 1:2]
 
   if 'wh' in output:
     wh = output['wh']
@@ -144,17 +160,6 @@ def generic_decode(output, K=100, opt=None, skip=[]):
                         xs0.view(batch, K, 1) + ltrb[..., 2:3], 
                         ys0.view(batch, K, 1) + ltrb[..., 3:4]], dim=2)
     ret['bboxes'] = bboxes
- 
-  regression_heads = ['tracking', 'dep', 'rot', 'dim', 'amodel_offset',
-    'nuscenes_att', 'velocity']
-
-  for head in regression_heads:
-    if head in output:
-      if not head in skip:
-        ret[head] = _tranpose_and_gather_feat(
-          output[head], inds).view(batch, K, -1)
-      else:
-        ret[head] = output[head]
 
   if 'ltrb_amodel' in output:
     ltrb_amodel = output['ltrb_amodel']

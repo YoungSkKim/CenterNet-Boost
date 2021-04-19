@@ -63,6 +63,10 @@ class GenericDataset(data.Dataset):
         split, ann_path, img_dir))
       self.coco = coco.COCO(ann_path)
       self.images = self.coco.getImgIds()
+      if opt.dataset == 'nuscenes' and opt.nuscenes_interval > 0 and split == 'train':
+        len_images = len(self.images)
+        self.images = self.images[::opt.nuscenes_interval]
+        print('Split {} nuscenes data by ratio {}'.format(len_images, opt.nuscenes_interval))
 
       if opt.tracking:
         if not ('videos' in self.coco.dataset):
@@ -138,6 +142,9 @@ class GenericDataset(data.Dataset):
       cls_id = int(self.cat_ids[ann['category_id']])
       if cls_id > self.opt.num_classes or cls_id <= -999:
         continue
+      if self.opt.discard_distant > 0:
+        if ann['depth'] > self.opt.discard_distant:
+          continue
       bbox, bbox_amodel = self._get_bbox_output(
         ann['bbox'], trans_output, height, width)
       if cls_id <= 0 or ('iscrowd' in ann and ann['iscrowd'] > 0):
@@ -150,13 +157,6 @@ class GenericDataset(data.Dataset):
         ret, gt_det, k, cls_id, bbox, bbox_amodel, ann, trans_output, aug_s,
         calib, pre_cts, track_ids)
 
-    if self.opt.debug > 0 or self.opt.eval_depth:
-      gt_det = self._format_gt_det(gt_det)
-      meta = {'c': c, 's': s, 'gt_det': gt_det, 'img_id': img_info['id'],
-              'img_path': img_path, 'calib': calib,
-              'flipped': flipped}
-      ret['meta'] = meta
-
     if self.opt.auxdep:
       if self.opt.dataset == 'kitti':
         depth = self._load_depth_data(img_path, 'depth_gt')
@@ -165,6 +165,13 @@ class GenericDataset(data.Dataset):
       depth, depth_mask = self._get_depth_anno(depth, ret, trans_input, aug_s, flipped)
       ret['auxdep'] = depth
       ret['auxdep_mask'] = depth_mask
+
+    if self.opt.debug > 0 or self.opt.eval_depth:
+      gt_det = self._format_gt_det(gt_det)
+      meta = {'c': c, 's': s, 'gt_det': gt_det, 'img_id': img_info['id'],
+              'img_path': img_path, 'calib': calib,
+              'flipped': flipped}
+      ret['meta'] = meta
     return ret
 
 
@@ -200,13 +207,13 @@ class GenericDataset(data.Dataset):
     return depth
 
 
-  def _load_depth_data_nuscenes(self, img_info): # TODO: change depth path
+  def _load_depth_data_nuscenes(self, img_info): # TODO: change depth path for nuscenes
     depth_path = os.path.join(self.opt.data_dir, 'nuscenes/object_trainval/training/depth_gt/%06d.png'%
-                              (34149*self.sensor_ids[img_info['sensor_id']] + img_info['local_id']))
+                              (self.NUM_SAMPLE*img_info['sensor_id'] + img_info['local_id']))
     depth = cv2.imread(depth_path, cv2.IMREAD_ANYDEPTH)
     if depth is None:
       depth_path = os.path.join(self.opt.data_dir, 'nuscenes/object_trainval/validation/depth_gt/%06d.png'%
-                              (34149*self.sensor_ids[img_info['sensor_id']] + img_info['local_id']))
+                              (self.NUM_SAMPLE*img_info['sensor_id'] + img_info['local_id']))
       depth = cv2.imread(depth_path, cv2.IMREAD_ANYDEPTH)
     return depth
 
@@ -223,7 +230,10 @@ class GenericDataset(data.Dataset):
       depth = depth[:self.opt.input_h, :self.opt.input_w].reshape(
         self.opt.output_h, self.opt.down_ratio,
         self.opt.output_w, self.opt.down_ratio).min(axis=(1, 3))
-    depth[depth >= 60] = 0
+    if self.opt.discard_distant > 0:
+      depth[depth >= self.opt.discard_distant] = 0
+    else:
+      depth[depth >= 70] = 0
     depth *= aug_s
 
     depth_mask = (depth > 0).astype(np.float32)
@@ -428,8 +438,7 @@ class GenericDataset(data.Dataset):
   def _init_ret(self, ret, gt_det):
     max_objs = self.max_objs * self.opt.dense_reg
     ret['hm'] = np.zeros(
-      (self.opt.num_classes, self.opt.output_h, self.opt.output_w), 
-      np.float32)
+      (self.opt.num_classes, self.opt.output_h, self.opt.output_w), dtype=np.float32)
     ret['ind'] = np.zeros((max_objs), dtype=np.int64)
     ret['cat'] = np.zeros((max_objs), dtype=np.int64)
     ret['mask'] = np.zeros((max_objs), dtype=np.float32)
@@ -441,8 +450,9 @@ class GenericDataset(data.Dataset):
 
     regression_head_dims = {
       'reg': 2, 'wh': 2, 'tracking': 2, 'ltrb': 4, 'ltrb_amodel': 4,
-      'nuscenes_att': 8, 'velocity': 3, 'hps': self.num_joints * 2, 
-      'dep': 1, 'dim': 3, 'amodel_offset': 2}
+      'nuscenes_att': 8, 'velocity': 3, 'hps': self.num_joints * 2,
+      'dep': 1, 'dim': 3, 'amodel_offset': 2,
+      'kp_t_offset': 2, 'kp_b_offset': 2}
 
     for head in regression_head_dims:
       if head in self.opt.heads:
@@ -513,7 +523,7 @@ class GenericDataset(data.Dataset):
     rect = np.array([[bbox[0], bbox[1]], [bbox[0], bbox[3]],
                     [bbox[2], bbox[3]], [bbox[2], bbox[1]]], dtype=np.float32)
     for t in range(4):
-      rect[t] =  affine_transform(rect[t], trans_output)
+      rect[t] = affine_transform(rect[t], trans_output)
     bbox[:2] = rect[:, 0].min(), rect[:, 1].min()
     bbox[2:] = rect[:, 0].max(), rect[:, 1].max()
 
@@ -531,11 +541,16 @@ class GenericDataset(data.Dataset):
     if h <= 0 or w <= 0:
       return
     radius = gaussian_radius((math.ceil(h), math.ceil(w)))
-    radius = max(0, int(radius)) 
-    ct = np.array(
-      [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
+    radius = max(0, int(radius))
+    if self.opt.set_amodal_center and 'amodel_center' in ann:
+      ct = affine_transform(ann['amodel_center'], trans_output)
+      ct[0] = np.clip(ct[0], 0, self.opt.output_w - 1e-3)
+      ct[1] = np.clip(ct[1], 0, self.opt.output_h - 1e-3)
+      ct_2d = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
+    else:
+      ct = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
     ct_int = ct.astype(np.int32)
-    if self.opt.twostage or self.opt.auxdep:
+    if self.opt.twostage or self.opt.auxdep:  # TODO: remove twostage (deprecated)
       ret['bboxes'][k] = bbox
       ret['cls'][k] = cls_id
     ret['cat'][k] = cls_id - 1
@@ -609,13 +624,16 @@ class GenericDataset(data.Dataset):
         ret['dim'][k] = ann['dim']
         gt_det['dim'].append(ret['dim'][k])
       else:
-        gt_det['dim'].append([1,1,1])
+        gt_det['dim'].append([1, 1, 1])
     
     if 'amodel_offset' in self.opt.heads:
       if 'amodel_center' in ann:
-        amodel_center = affine_transform(ann['amodel_center'], trans_output)
         ret['amodel_offset_mask'][k] = 1
-        ret['amodel_offset'][k] = amodel_center - ct_int
+        if self.opt.set_amodal_center:
+          ret['amodel_offset'][k] = ct_2d - ct_int
+        else:
+          amodel_center = affine_transform(ann['amodel_center'], trans_output)
+          ret['amodel_offset'][k] = amodel_center - ct_int
         gt_det['amodel_offset'].append(ret['amodel_offset'][k])
       else:
         gt_det['amodel_offset'].append([0, 0])
@@ -635,7 +653,7 @@ class GenericDataset(data.Dataset):
       pts[j, :2] = affine_transform(pts[j, :2], trans_output)
       if pts[j, 2] > 0:
         if pts[j, 0] >= 0 and pts[j, 0] < self.opt.output_w and \
-          pts[j, 1] >= 0 and pts[j, 1] < self.opt.output_h:
+           pts[j, 1] >= 0 and pts[j, 1] < self.opt.output_h:
           ret['hps'][k, j * 2: j * 2 + 2] = pts[j, :2] - ct_int
           ret['hps_mask'][k, j * 2: j * 2 + 2] = 1
           pt_int = pts[j, :2].astype(np.int32)
