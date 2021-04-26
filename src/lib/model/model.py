@@ -58,7 +58,6 @@ def load_model(model, model_path, opt, optimizer=None):
           state_dict[k] = model_state_dict[k]
     else:
       print('Drop parameter {}.'.format(k))
-      # state_dict[k] = model_state_dict[k]
   for k in model_state_dict:
     if not (k in state_dict):
       if k.split(".")[0] in ['cls']:
