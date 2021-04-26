@@ -114,10 +114,11 @@ def prefetch_test(opt):
     
     Bar.suffix = '[{0}/{1}]|Tot: {total:} |ETA: {eta:} '.format(
                    ind, num_iters, total=bar.elapsed_td, eta=bar.eta_td)
-    for t in avg_time_stats:
-      avg_time_stats[t].update(ret[t])
-      Bar.suffix = Bar.suffix + '|{} {tm.val:.5f}s ({tm.avg:.5f}s) '.format(
-        t, tm = avg_time_stats[t])
+    if ind > 50:  # skip first 50 iters to skip GPU warmup time
+      for t in avg_time_stats:
+        avg_time_stats[t].update(ret[t])
+        Bar.suffix = Bar.suffix + '|{} {tm.val:.5f}s ({tm.avg:.5f}s) '.format(
+          t, tm = avg_time_stats[t])
     if opt.print_iter > 0:
       if ind % opt.print_iter == 0:
         print('{}/{}| {}'.format(opt.task, opt.exp_id, Bar.suffix))
