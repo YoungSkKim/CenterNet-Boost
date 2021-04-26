@@ -60,3 +60,32 @@ def compute_depth_metrics(gt, pred):
     # Return average values for each metric
     return torch.tensor([metric / batch_size for metric in
         [abs_rel, sq_rel, rmse, rmse_log, a0, a1, a2, a3]]).type_as(gt)
+
+
+def eval_depth(batch, output, metrics_all, metrics_obj):
+    depth_gt_all = batch['auxdep'] * batch['auxdep_mask'][:, :, :, 0].unsqueeze(0)
+    depth_gt_obj = batch['auxdep'] * batch['auxdep_mask'][:, :, :, 1].unsqueeze(0)
+
+    # eval DORN
+    # depth_dorn_path = '/home/user/data/Dataset/KITTI/training/dorn/%06d.png'%batch['meta']['img_id'][0].numpy()
+    # depth_dorn = cv2.imread(depth_dorn_path, cv2.IMREAD_ANYDEPTH)
+    # depth_dorn = (depth_dorn / 256.).astype(np.float32)
+    # depth_dorn = torch.from_numpy(depth_dorn).unsqueeze(0).unsqueeze(0).to('cuda:0')
+    # metrics_all.append(compute_depth_metrics(depth_gt_all, depth_dorn))
+    # metrics_obj.append(compute_depth_metrics(depth_gt_obj, depth_dorn))
+
+    # eval proposed method
+    metrics_all.append(compute_depth_metrics(depth_gt_all, output['dep']))
+    metrics_obj.append(compute_depth_metrics(depth_gt_obj, output['dep']))
+
+    if len(metrics_all) == 3769:  # TODO: make len(dataset) as variable
+        metrics_all = (sum(metrics_all) / len(metrics_all)).detach().cpu().numpy()
+        metrics_obj = (sum(metrics_obj) / len(metrics_obj)).detach().cpu().numpy()
+        names = ['abs_rel', 'sqr_rel', 'rmse', 'rmse_log', 'a0', 'a1', 'a2', 'a3']
+        print('raw depth map')
+        for name, metrics_all in zip(names, metrics_all):
+            print('{} = {:.3f}'.format(name, metrics_all))
+        print('object-centric depth map')
+        for name, metrics_obj in zip(names, metrics_obj):
+            print('{} = {:.3f}'.format(name, metrics_obj))
+    return metrics_all, metrics_obj

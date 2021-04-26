@@ -19,8 +19,7 @@ from model.utils import _sigmoid, flip_tensor, flip_lr_off, flip_lr, _tranpose_a
 from utils.debugger import Debugger
 from utils.post_process import generic_post_process
 
-import cv2
-from utils.depth import compute_depth_metrics
+from utils.depth import eval_depth
 
 class GenericLoss(torch.nn.Module):
   def __init__(self, opt):
