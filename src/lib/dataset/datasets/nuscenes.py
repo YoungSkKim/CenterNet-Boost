@@ -20,7 +20,7 @@ from utils.ddd_utils import compute_box_3d, project_to_image
 class nuScenes(GenericDataset):
   default_resolution = [448, 800]
   num_categories = 10
-  NUM_SAMPLE = 34149
+  num_tot_sample = 34149
   class_name = [
     'car', 'truck', 'bus', 'trailer', 
     'construction_vehicle', 'pedestrian', 'motorcycle', 'bicycle',

@@ -62,7 +62,23 @@ class GenericDataset(data.Dataset):
       print('==> initializing {} data from {}, \n images from {} ...'.format(
         split, ann_path, img_dir))
       self.coco = coco.COCO(ann_path)
-      self.images = self.coco.getImgIds()
+
+      if opt.nuscenes_CBGS and split == 'train':
+        print('Class-balanced Grouping and Sampling')
+        _nusc_infos = {k: set(v) for k, v in self.coco.catToImgs.items()}
+        duplicated_samples = sum([len(v) for _, v in _nusc_infos.items()])
+        _cls_dist = {k: len(_nusc_infos[k]) / duplicated_samples for k in range(1, len(self.class_name)+1)}
+
+        frac = 1.0 / len(self.class_name)
+        ratios = [frac / v for v in _cls_dist.values()]
+
+        self.images = []
+        for cls_idx, ratio in zip(range(1, len(self.class_name)+1), ratios):
+          self.images += np.random.choice(
+            list(_nusc_infos[cls_idx]), int(len(_nusc_infos[cls_idx]) * ratio)
+          ).tolist()
+      else:
+        self.images = self.coco.getImgIds()
       if opt.dataset == 'nuscenes' and opt.nuscenes_interval > 0 and split == 'train':
         len_images = len(self.images)
         self.images = self.images[::opt.nuscenes_interval]
@@ -205,11 +221,11 @@ class GenericDataset(data.Dataset):
 
   def _load_depth_data_nuscenes(self, img_info): # TODO: change depth path for nuscenes
     depth_path = os.path.join(self.opt.data_dir, 'nuscenes/object_trainval/training/depth_gt/%06d.png'%
-                              (self.NUM_SAMPLE*img_info['sensor_id'] + img_info['local_id']))
+                              (self.num_tot_sample*img_info['sensor_id'] + img_info['local_id']))
     depth = cv2.imread(depth_path, cv2.IMREAD_ANYDEPTH)
     if depth is None:
       depth_path = os.path.join(self.opt.data_dir, 'nuscenes/object_trainval/validation/depth_gt/%06d.png'%
-                              (self.NUM_SAMPLE*img_info['sensor_id'] + img_info['local_id']))
+                              (self.num_tot_sample*img_info['sensor_id'] + img_info['local_id']))
       depth = cv2.imread(depth_path, cv2.IMREAD_ANYDEPTH)
     return depth
 

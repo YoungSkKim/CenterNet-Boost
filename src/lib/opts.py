@@ -181,8 +181,6 @@ class opts(object):
     self.parser.add_argument('--vis_gt_bev', default='', help='')
     self.parser.add_argument('--kitti_split', default='3dop',
                              help='different validation split for kitti: 3dop | subcnn')
-    self.parser.add_argument('--nuscenes_interval', type=int, default=1,
-                             help='data sampling ratio for faster training')
     self.parser.add_argument('--test_focal_length', type=int, default=-1)
 
     # dataset
@@ -207,8 +205,11 @@ class opts(object):
     self.parser.add_argument('--flip', type=float, default=0.5,
                              help='probability of applying flip augmentation.')
     self.parser.add_argument('--no_color_aug', action='store_true',
-                             help='not use the color augmenation '
-                                  'from CornerNet')
+                             help='not use the color augmenation from CornerNet')
+    self.parser.add_argument('--nuscenes_interval', type=int, default=1,
+                             help='data sampling ratio for faster training')
+    self.parser.add_argument('--nuscenes_CBGS', type=self.str2bool, default=True,
+                             help='data sampling ratio for faster training')
     # tracking
     self.parser.add_argument('--tracking', action='store_true')
     self.parser.add_argument('--pre_hm', action='store_true')
@@ -257,14 +258,20 @@ class opts(object):
     self.parser.add_argument('--velocity_weight', type=float, default=1)
 
     # CenterNet-Boost configs
+    self.parser.add_argument('--set_amodal_center', type=self.str2bool, default=True,
+                             help='set projected 3D center as center point if True,'
+                                  'use center of 2D bounding box if False.')
+    self.parser.add_argument('--discard_distant', type=float, default=60,
+                             help='discard distant instance farther than certain range, set -1 to disable')
+
     self.parser.add_argument('--auxdep', type=self.str2bool, default=True,
                              help='enable auxiliary depth prediction loss.')
     self.parser.add_argument('--auxdep_weight', type=float, default=1,
                              help='loss weight for auxiliary depth.')
     self.parser.add_argument('--auxdep_offset', type=float, default=1.5,
-                             help='offset of depth annotation.')
+                             help='add offset to depth annotation.')
     self.parser.add_argument('--auxdep_ratio', type=float, default=0.5,
-                             help='point sampling ratio.')
+                             help='random point sampling ratio.')
     self.parser.add_argument('--auxdep_mask', type=self.str2bool, default=True,
                              help='foreground object mask')
 
@@ -285,31 +292,22 @@ class opts(object):
     self.parser.add_argument('--deperror_clamp', type=str, default='0.1,1',
                              help='clamp depth error for training stability.')
 
-    # CenterNet-Boost-V2
-    self.parser.add_argument('--set_amodal_center', type=self.str2bool, default=True,
-                             help='set projected 3D center as center point rather than center of 2D bounding box.')
-    self.parser.add_argument('--discard_distant', type=float, default=60,
-                             help='discard distant instance farther than certain range, set -1 to disable')
-
     # configs for experiments
     self.parser.add_argument('--skip_load', default=[],
                              help='skip loading parameters from pre-trained model.'
                                   "e.g., ['dep', 'dim'] to train dep, dim from init")
 
     self.parser.add_argument('--freeze_weight', type=self.str2bool, default=False)
-    self.parser.add_argument('--freeze_weight_skip', default=[], nargs='+',
-                             help='freeze branch from pre-trained model.'
-                                  "e.g., ['dep'] to freeze dep branch while training")
+    self.parser.add_argument('--freeze_weight_skip', nargs='+', default=[],
+                             help='skip freeze branch from pre-trained model.'
+                                  "e.g., ['dep'] not to freeze dep branch")
 
     self.parser.add_argument('--reuse_hm', type=self.str2bool, default=True)
     self.parser.add_argument('--reuse_hm_order', type=str, default='5,0,7',
                              help='reuse heatmap branch from pre-trained model on nuScenes.'
-                                  "e.g., '5,0,7' to load 'ped','car','bicycle' and '0' to load 'car'"
-                                  "'car','truck','bus','trailer','const_vehicle',"
-                                  "'ped','motorcycle','bicycle','traffic_cone','barrier'")
-
-    self.parser.add_argument('--remove_dontcare', type=self.str2bool, default=False,
-                             help='remove object smaller than 20 pixels height.')
+                                  "e.g., '5,0,7' to load ['ped','car','bicycle'] from"
+                                  "['car','truck','bus','trailer','const_vehicle',"
+                                  " 'ped','motorcycle','bicycle','traffic_cone','barrier']")
 
     self.parser.add_argument('--eval_depth', default=False,
                              help='evaluate depth prediction performance.')
