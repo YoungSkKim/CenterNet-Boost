@@ -149,10 +149,6 @@ class GenericDataset(data.Dataset):
         ann['bbox'], trans_output, height, width)
       if cls_id <= 0 or ('iscrowd' in ann and ann['iscrowd'] > 0):
         self._mask_ignore_or_crowd(ret, cls_id, bbox)
-        if self.opt.twostage:
-          ret['bboxes'][k] = bbox
-          ret['ignore'][k] = 1
-        continue
       self._add_instance(
         ret, gt_det, k, cls_id, bbox, bbox_amodel, ann, trans_output, aug_s,
         calib, pre_cts, track_ids)
@@ -366,7 +362,7 @@ class GenericDataset(data.Dataset):
 
   def _get_aug_param(self, c, s, width, height, disturb=False):
     if (not self.opt.not_rand_crop) and not disturb:
-      if self.opt.task in ['ddd', 'ddd_twostage']:
+      if self.opt.task == 'ddd':
         aug_s = np.random.choice(np.arange(0.9, 1.1, 0.05))
         w_border = self._get_border(c[0]*0.9, width)
         h_border = self._get_border(c[1]*0.95, height)
@@ -443,10 +439,8 @@ class GenericDataset(data.Dataset):
     ret['cat'] = np.zeros((max_objs), dtype=np.int64)
     ret['mask'] = np.zeros((max_objs), dtype=np.float32)
 
-    if self.opt.twostage or self.opt.auxdep:
+    if self.opt.auxdep:
       ret['bboxes'] = np.zeros((max_objs, 4), dtype=np.float32)
-      ret['cls'] = np.zeros(max_objs, dtype=np.int64)
-      ret['ignore'] = np.zeros(self.opt.K, dtype=np.int64)
 
     regression_head_dims = {
       'reg': 2, 'wh': 2, 'tracking': 2, 'ltrb': 4, 'ltrb_amodel': 4,
@@ -550,9 +544,8 @@ class GenericDataset(data.Dataset):
     else:
       ct = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
     ct_int = ct.astype(np.int32)
-    if self.opt.twostage or self.opt.auxdep:  # TODO: remove twostage (deprecated)
+    if self.opt.auxdep:
       ret['bboxes'][k] = bbox
-      ret['cls'][k] = cls_id
     ret['cat'][k] = cls_id - 1
     ret['mask'][k] = 1
     if 'wh' in ret:

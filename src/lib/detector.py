@@ -12,7 +12,7 @@ import math
 
 from model.model import create_model, load_model
 from model.decode import generic_decode
-from model.utils import flip_tensor, flip_lr_off, flip_lr, bbox_overlaps
+from model.utils import flip_tensor, flip_lr_off, flip_lr
 from utils.image import get_affine_transform, affine_transform
 from utils.image import draw_umich_gaussian, gaussian_radius
 from utils.post_process import generic_post_process
@@ -299,18 +299,18 @@ class Detector(object):
     return calib
 
 
-  def _sigmoid_output(self, output, ignore=None):
-    if 'hm' in output and not 'hm' in ignore:
+  def _sigmoid_output(self, output):
+    if 'hm' in output:
       output['hm'] = output['hm'].sigmoid_()
-    if 'hm_hp' in output and not 'hm_hp' in ignore:
+    if 'hm_hp' in output:
       output['hm_hp'] = output['hm_hp'].sigmoid_()
-    if 'cls' in output and not 'cls' in ignore:
+    if 'cls' in output:
       output['cls'] = output['cls'].sigmoid_()
-    if 'dep' in output and not 'dep' in ignore:
+    if 'dep' in output:
       output['dep'] = 1. / (output['dep'].sigmoid() + 1e-6) - 1.
       output['dep'] *= self.opt.depth_scale
       # output['dep'] = torch.clamp(output['dep'], min=0.01, max=60)  # TODO: Temp disable for test
-    if 'depconf' in output and not 'depconf' in ignore:
+    if 'depconf' in output:
       output['depconf'] = torch.clamp(output['depconf'].sigmoid_(), min=0.01, max=0.99)
     return output
 
@@ -321,38 +321,21 @@ class Detector(object):
     single_flips = ['ltrb', 'nuscenes_att', 'velocity', 'ltrb_amodel', 'reg',
       'hp_offset', 'rot', 'tracking', 'pre_hm']
 
-    if self.opt.twostage:
-      flip_bbox = torch.tensor([-1, 1, -1, 1], device=self.opt.device)
-      flip_ct = torch.tensor([-1, 1], device=self.opt.device)
-      add_x = torch.tensor([self.opt.output_w, 0, self.opt.output_w, 0], device=self.opt.device)
-      if output['keep_idx_pos'][0].shape[0] != 0 and output['keep_idx_pos'][1].shape[0] != 0:
-        bboxes1 = output['bboxes'][0, output['keep_idx_pos'][0], :]
-        bboxes2 = output['bboxes'][1, output['keep_idx_pos'][1], :]
-        bboxes2 = bboxes2[:, [2, 1, 0, 3]] * flip_bbox + add_x
-        ious = bbox_overlaps(bboxes2, bboxes1)
-        max_iou, gt_assignment = ious.max(axis=1)
-        out_flip = torch.where(max_iou >= 0.7)[0]
-        out = gt_assignment[out_flip]
-        output['dep'][0, out] = (output['dep'][0, out] + output['dep'][1, out_flip]) / 2
-        output['dim'][0, out] = (output['dim'][0, out] + output['dim'][1, out_flip]) / 2
-        output['amodel_offset'][0, out] = (output['amodel_offset'][0, out] + \
-                                           output['amodel_offset'][1, out_flip] * flip_ct) / 2
-    else:
-      for head in output:
-        if head in average_flips:
-          output[head] = (output[head][0:1] + flip_tensor(output[head][1:2])) / 2
-        if head in neg_average_flips:
-          flipped_tensor = flip_tensor(output[head][1:2])
-          flipped_tensor[:, 0::2] *= -1
-          output[head] = (output[head][0:1] + flipped_tensor) / 2
-        if head in single_flips:
-          output[head] = output[head][0:1]
-        if head == 'hps':
-          output['hps'] = (output['hps'][0:1] +
-            flip_lr_off(output['hps'][1:2], self.flip_idx)) / 2
-        if head == 'hm_hp':
-          output['hm_hp'] = (output['hm_hp'][0:1] + \
-            flip_lr(output['hm_hp'][1:2], self.flip_idx)) / 2
+    for head in output:
+      if head in average_flips:
+        output[head] = (output[head][0:1] + flip_tensor(output[head][1:2])) / 2
+      if head in neg_average_flips:
+        flipped_tensor = flip_tensor(output[head][1:2])
+        flipped_tensor[:, 0::2] *= -1
+        output[head] = (output[head][0:1] + flipped_tensor) / 2
+      if head in single_flips:
+        output[head] = output[head][0:1]
+      if head == 'hps':
+        output['hps'] = (output['hps'][0:1] +
+          flip_lr_off(output['hps'][1:2], self.flip_idx)) / 2
+      if head == 'hm_hp':
+        output['hm_hp'] = (output['hm_hp'][0:1] + \
+          flip_lr(output['hm_hp'][1:2], self.flip_idx)) / 2
 
     return output
 
@@ -361,29 +344,13 @@ class Detector(object):
     with torch.no_grad():
       torch.cuda.synchronize()
       output = self.model(images, pre_images, pre_hms)[-1]
-      ignore_list = []
-      if self.opt.task == 'ddd_twostage':
-        ignore_list.append('hm')
-      output = self._sigmoid_output(output, ignore=ignore_list)
+      output = self._sigmoid_output(output)
       output.update({'pre_inds': pre_inds})
       if self.opt.flip_test:
         output = self._flip_output(output)
       torch.cuda.synchronize()
       forward_time = time.time()
-      if self.opt.twostage:
-        heads = ['scores', 'clses', 'rot', 'cts', 'bboxes', 'dep', 'dim', 'amodel_offset']
-        if 'cls' in output:
-          heads.append('cls')
-        for head in heads:
-          output[head] = output[head][0, output['keep_idx_pos'][0]].unsqueeze(dim=0)
-        if 'cls' in output and output['cls'].shape[1] > 0:
-          output['scores'], output['clses'] = torch.max(output['cls'], dim=2)
-        dets = output
-        dets.pop('pre_inds')
-        dets.pop('keep_idx_pos')
-        dets.pop('keep_idx_neg')
-      else:
-        dets = generic_decode(output, K=self.opt.K, opt=self.opt)
+      dets = generic_decode(output, K=self.opt.K, opt=self.opt)
       torch.cuda.synchronize()
       for k in dets:
         dets[k] = dets[k].detach().cpu().numpy()
@@ -421,7 +388,7 @@ class Detector(object):
     img = images[0].detach().cpu().numpy().transpose(1, 2, 0)
     img = np.clip(((
       img * self.std + self.mean) * 255.), 0, 255).astype(np.uint8)
-    if self.opt.task in ['ddd', 'ctdet', 'ddd_twostage']:
+    if self.opt.task in ['ddd', 'ctdet']:
       self.pred = debugger.gen_colormap(output['hm'][0].detach().cpu().numpy())
     else:
       self.pred = debugger.gen_colormap(output['hm'][0])

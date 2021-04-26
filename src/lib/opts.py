@@ -11,7 +11,7 @@ class opts(object):
     self.parser = argparse.ArgumentParser()
     # basic experiment setting
     self.parser.add_argument('--task', default='ddd',
-                             help='ctdet | ddd | ddd_twostage | multi_pose '
+                             help='ctdet | ddd | multi_pose '
                              '| tracking or combined with ,')
     self.parser.add_argument('--dataset', default='kitti',
                              help='see lib/dataset/dataset_facotry for ' + 
@@ -389,10 +389,9 @@ class opts(object):
     if opt.resume and opt.load_model == '':
       opt.load_model = os.path.join(opt.save_dir, 'model_last.pth')
 
-    if opt.task == 'ddd_twostage':
-        opt.twostage = True
-    else:
-        opt.twostage = False
+    if opt.dataset == 'nuscenes':
+      opt.reuse_hm = False
+
     return opt
 
 

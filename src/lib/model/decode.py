@@ -80,7 +80,7 @@ def _update_kps_with_hm(
   else:
     return kps, kps
 
-def generic_decode(output, K=100, opt=None, skip=[]):
+def generic_decode(output, K=100, opt=None):
   if not ('hm' in output):
     return {}
 
@@ -99,19 +99,14 @@ def generic_decode(output, K=100, opt=None, skip=[]):
   cts = torch.cat([xs0.unsqueeze(2), ys0.unsqueeze(2)], dim=2)
   ret = {'scores': scores, 'clses': clses.float(), 
          'xs': xs0, 'ys': ys0, 'cts': cts}
-  if opt.twostage:
-    ret.update({'ind': inds})
 
   regression_heads = ['tracking', 'dep', 'rot', 'dim', 'amodel_offset',
                       'nuscenes_att', 'velocity']
 
   for head in regression_heads:
     if head in output:
-      if not head in skip:
-        ret[head] = _tranpose_and_gather_feat(
-          output[head], inds).view(batch, K, -1)
-      else:
-        ret[head] = output[head]
+      ret[head] = _tranpose_and_gather_feat(
+        output[head], inds).view(batch, K, -1)
 
   if 'depconf' in output:
     depconf = output['depconf']

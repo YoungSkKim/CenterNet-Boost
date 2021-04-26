@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from model.losses import FastFocalLoss, RegWeightedL1Loss
 from model.losses import BinRotLoss, WeightedBCELoss, compute_rot_loss
 from model.decode import generic_decode
-from model.utils import _sigmoid, flip_tensor, flip_lr_off, flip_lr, bbox_overlaps, ProposalTargetCreator, _tranpose_and_gather_feat
+from model.utils import _sigmoid, flip_tensor, flip_lr_off, flip_lr, _tranpose_and_gather_feat
 from utils.debugger import Debugger
 from utils.post_process import generic_post_process
 
@@ -27,7 +27,6 @@ class GenericLoss(torch.nn.Module):
     super(GenericLoss, self).__init__()
     self.crit = FastFocalLoss(opt=opt)
     self.crit_reg = RegWeightedL1Loss()
-    self.proposal_target_creator = ProposalTargetCreator(opt, n_sample=opt.max_objs)
     if 'rot' in opt.heads:
       self.crit_rot = BinRotLoss()
     if 'nuscenes_att' in opt.heads:
@@ -39,14 +38,13 @@ class GenericLoss(torch.nn.Module):
       self.metrics_all = []
       self.metrics_obj = []
 
-  def _sigmoid_output(self, output, ignore=[]):
-    if 'hm' in output and not 'hm' in ignore:
+  def _sigmoid_output(self, output):
+    if 'hm' in output:
       output['hm'] = _sigmoid(output['hm'])
     if 'hm_hp' in output:
       output['hm_hp'] = _sigmoid(output['hm_hp'])
-    if 'dep' in output and not 'dep' in ignore:
+    if 'dep' in output:
       output['dep'] = 1. / (output['dep'].sigmoid() + 1e-6) - 1.
-      output['dep'] = torch.clamp(output['dep'], min=0.01, max=60)
     if 'depconf' in output:
       output['depconf'] = torch.clamp(output['depconf'].sigmoid(), min=0.01, max=0.99)
     return output
@@ -58,45 +56,18 @@ class GenericLoss(torch.nn.Module):
 
     for s in range(opt.num_stacks):
       output = outputs[s]
-      ignore_list = []
-      if opt.task == 'ddd_twostage':
-        ignore_list.append('hm')
-      output = self._sigmoid_output(output, ignore=ignore_list)
+      output = self._sigmoid_output(output)
+
+      if opt.eval_depth:
+        self.metrics_all, self.metrics_obj = eval_depth(batch, output, self.metrics_all, self.metrics_obj)
+        for items in losses:  # dump dummy losses
+          losses[items] = torch.tensor(0, dtype=torch.float, device=opt.device)
+        continue
 
       if 'hm' in output:
         losses['hm'] += self.crit(
           output['hm'], batch['hm'], batch['ind'], 
           batch['mask'], batch['cat']) / opt.num_stacks
-
-      if opt.eval_depth:
-        depth_gt_all = batch['auxdep'] * batch['auxdep_mask'][:, :, :, 0].unsqueeze(0)
-        depth_gt_obj = batch['auxdep'] * batch['auxdep_mask'][:, :, :, 1].unsqueeze(0)
-
-        # eval DORN
-        # depth_dorn_path = '/home/user/data/Dataset/KITTI/training/dorn/%06d.png'%batch['meta']['img_id'][0].numpy()
-        # depth_dorn = cv2.imread(depth_dorn_path, cv2.IMREAD_ANYDEPTH)
-        # depth_dorn = (depth_dorn / 256.).astype(np.float32)
-        # depth_dorn = torch.from_numpy(depth_dorn).unsqueeze(0).unsqueeze(0).to('cuda:0')
-        # self.metrics_all.append(compute_depth_metrics(depth_gt_all, depth_dorn))
-        # self.metrics_obj.append(compute_depth_metrics(depth_gt_obj, depth_dorn))
-        # eval proposed method
-        self.metrics_all.append(compute_depth_metrics(depth_gt_all, output['dep']))
-        self.metrics_obj.append(compute_depth_metrics(depth_gt_obj, output['dep']))
-
-        if len(self.metrics_all) == 3769:
-          metrics_all = (sum(self.metrics_all) / len(self.metrics_all)).detach().cpu().numpy()
-          metrics_obj = (sum(self.metrics_obj) / len(self.metrics_obj)).detach().cpu().numpy()
-          names = ['abs_rel', 'sqr_rel', 'rmse', 'rmse_log', 'a0', 'a1', 'a2', 'a3']
-          print('raw depth map')
-          for name, metrics_all in zip(names, metrics_all):
-              print('{} = {:.3f}'.format(name, metrics_all))
-          print('object-centric depth map')
-          for name, metrics_obj in zip(names, metrics_obj):
-              print('{} = {:.3f}'.format(name, metrics_obj))
-
-        for items in losses:
-          losses[items] = torch.tensor(0, dtype=torch.float, device=opt.device)
-        continue
 
       if 'dep' in output:
         dep_pred = _tranpose_and_gather_feat(output['dep'], batch['ind'])
@@ -130,73 +101,41 @@ class GenericLoss(torch.nn.Module):
           loss = self.l1loss(pred * batch['dep_mask'], target * batch['dep_mask'])
           losses['depconf'] += loss.sum() / (batch['dep_mask'].sum() + 1e-4)
 
-      if opt.twostage:
-        for head in ['reg', 'wh', 'dim', 'amodel_offset']:
+      regression_heads = [
+        'reg', 'wh', 'tracking', 'ltrb', 'ltrb_amodel', 'hps',
+        'dim', 'amodel_offset', 'velocity']
+
+      for head in regression_heads:
+        if head in output:
           losses[head] += self.crit_reg(
             output[head], batch[head + '_mask'],
             batch['ind'], batch[head]) / opt.num_stacks
 
+      if 'hm_hp' in output:
+        losses['hm_hp'] += self.crit(
+          output['hm_hp'], batch['hm_hp'], batch['hp_ind'],
+          batch['hm_hp_mask'], batch['joint']) / opt.num_stacks
+        if 'hp_offset' in output:
+          losses['hp_offset'] += self.crit_reg(
+            output['hp_offset'], batch['hp_offset_mask'],
+            batch['hp_ind'], batch['hp_offset']) / opt.num_stacks
+
+      if 'rot' in output:
         losses['rot'] += self.crit_rot(
           output['rot'], batch['rot_mask'], batch['ind'], batch['rotbin'],
           batch['rotres']) / opt.num_stacks
 
-        sample = self.proposal_target_creator(output, batch)
-        heads_roi = [head for head in sample['output']]
-        for head in heads_roi + ['num_pos', 'num_neg', 'num_gt', 'dep']:
-          losses[head] = torch.tensor(0, dtype=torch.float, device=opt.device)
-
-        losses['num_pos'] += sample['num_pos']
-        losses['num_neg'] += sample['num_neg']
-        losses['num_gt'] += batch['mask'].sum()
-        if sample['num_pos'] > 0:
-          for head in heads_roi:
-            if head == 'rot':
-              loss = compute_rot_loss(sample['output']['rot'].unsqueeze(0),
-                                      sample['batch']['rotbin'].unsqueeze(0), sample['batch']['rotres'].unsqueeze(0),
-                                      torch.ones(1, sample['num_pos'], dtype=torch.float32, device=self.opt.device))
-              losses['rot'] += loss
-            if head == 'cls':
-              loss = self.bceloss(sample['output']['cls'].view(-1), sample['batch']['cls'].view(-1).float()).sum()
-              losses['cls'] += loss / (sample['num_pos'] + sample['num_neg'] + 1e-4)
-            if head == 'dep':
-              loss = F.smooth_l1_loss(sample['output'][head].view(1, -1),
-                                      sample['batch'][head].view(1, -1), reduction='sum')
-              losses[head] += loss / (sample['num_pos'] + 1e-4)
-
-      else:
-        regression_heads = [
-          'reg', 'wh', 'tracking', 'ltrb', 'ltrb_amodel', 'hps',
-          'dim', 'amodel_offset', 'velocity']
-
-        for head in regression_heads:
-          if head in output:
-            losses[head] += self.crit_reg(
-              output[head], batch[head + '_mask'],
-              batch['ind'], batch[head]) / opt.num_stacks
-
-        if 'hm_hp' in output:
-          losses['hm_hp'] += self.crit(
-            output['hm_hp'], batch['hm_hp'], batch['hp_ind'],
-            batch['hm_hp_mask'], batch['joint']) / opt.num_stacks
-          if 'hp_offset' in output:
-            losses['hp_offset'] += self.crit_reg(
-              output['hp_offset'], batch['hp_offset_mask'],
-              batch['hp_ind'], batch['hp_offset']) / opt.num_stacks
-
-        if 'rot' in output:
-          losses['rot'] += self.crit_rot(
-            output['rot'], batch['rot_mask'], batch['ind'], batch['rotbin'],
-            batch['rotres']) / opt.num_stacks
-
-        if 'nuscenes_att' in output:
-          losses['nuscenes_att'] += self.crit_nuscenes_att(
-            output['nuscenes_att'], batch['nuscenes_att_mask'],
-            batch['ind'], batch['nuscenes_att']) / opt.num_stacks
+      if 'nuscenes_att' in output:
+        losses['nuscenes_att'] += self.crit_nuscenes_att(
+          output['nuscenes_att'], batch['nuscenes_att_mask'],
+          batch['ind'], batch['nuscenes_att']) / opt.num_stacks
 
     losses['tot'] = 0
     for head in opt.heads:
       if head in losses:
         losses['tot'] += opt.weights[head] * losses[head]
+    if opt.auxdep:
+      losses['tot'] += opt.weights['auxdep'] * losses['auxdep']
 
     return losses['tot'], losses
 
@@ -306,8 +245,6 @@ class Trainer(object):
       'ltrb_amodel', 'tracking', 'nuscenes_att', 'velocity']
     loss_states = ['tot'] + [k for k in loss_order if k in opt.heads]
     if opt.auxdep: loss_states += ['auxdep']
-    if opt.task == 'ddd_twostage':
-      loss_states += ['num_pos', 'num_neg', 'num_gt']
     loss = GenericLoss(opt)
     return loss_states, loss
 
