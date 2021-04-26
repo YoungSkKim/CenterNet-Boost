@@ -131,7 +131,7 @@ if __name__ == '__main__':
         dim = [float(tmp[10]), float(tmp[11]), float(tmp[12])]
         location = [float(tmp[13]), float(tmp[14]), float(tmp[15])]
         rotation_y = float(tmp[16])
-        amodel_center = project_to_image(
+        amodal_center = project_to_image(
           np.array([location[0], location[1] - dim[0] / 2, location[2]], 
             np.float32).reshape(1, 3), calib)[0].tolist()  
         ann = {'image_id': frame_id + 1 - image_range[0] + image_id_base,
@@ -145,7 +145,7 @@ if __name__ == '__main__':
                'occluded': occluded,
                'location': location,
                'rotation_y': rotation_y,
-               'amodel_center': amodel_center,
+               'amodal_center': amodal_center,
                'track_id': track_id + 1}
         if CREATE_HALF_LABEL and 'half' in split:
           if (frame_id < image_range[0] or frame_id > image_range[1]):

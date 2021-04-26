@@ -317,8 +317,8 @@ class Detector(object):
 
   def _flip_output(self, output):
     average_flips = ['hm', 'wh', 'dep', 'dim', 'depconf']
-    neg_average_flips = ['amodel_offset']
-    single_flips = ['ltrb', 'nuscenes_att', 'velocity', 'ltrb_amodel', 'reg',
+    neg_average_flips = ['amodal_offset']
+    single_flips = ['ltrb', 'nuscenes_att', 'velocity', 'ltrb_amodal', 'reg',
       'hp_offset', 'rot', 'tracking', 'pre_hm']
 
     for head in output:

@@ -107,7 +107,7 @@ for SPLIT in SPLITS:
         dim = [float(tmp[8]), float(tmp[9]), float(tmp[10])]
         location = [float(tmp[11]), float(tmp[12]), float(tmp[13])]
         rotation_y = float(tmp[14])
-        amodel_center = project_to_image(
+        amodal_center = project_to_image(
           np.array([location[0], location[1] - dim[0] / 2, location[2]],
             np.float32).reshape(1, 3), calib)[0].tolist()
 
@@ -122,7 +122,7 @@ for SPLIT in SPLITS:
                'occluded': occluded,
                'location': location,
                'rotation_y': rotation_y,
-               'amodel_center': amodel_center}
+               'amodal_center': amodal_center}
         ret['annotations'].append(ann)
         if DEBUG and tmp[0] != 'DontCare':
           box_3d = compute_box_3d(dim, location, rotation_y)

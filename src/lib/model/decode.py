@@ -100,7 +100,7 @@ def generic_decode(output, K=100, opt=None):
   ret = {'scores': scores, 'clses': clses.float(), 
          'xs': xs0, 'ys': ys0, 'cts': cts}
 
-  regression_heads = ['tracking', 'dep', 'rot', 'dim', 'amodel_offset',
+  regression_heads = ['tracking', 'dep', 'rot', 'dim', 'amodal_offset',
                       'nuscenes_att', 'velocity']
 
   for head in regression_heads:
@@ -124,9 +124,9 @@ def generic_decode(output, K=100, opt=None):
     ys = ys0.view(batch, K, 1) + 0.5
 
   if opt.set_amodal_center:
-    ret['amodel_center'] = torch.cat([xs, ys], dim=2)
-    xs = xs0.view(batch, K, 1) + ret['amodel_offset'][:, :, 0:1]
-    ys = ys0.view(batch, K, 1) + ret['amodel_offset'][:, :, 1:2]
+    ret['amodal_center'] = torch.cat([xs, ys], dim=2)
+    xs = xs0.view(batch, K, 1) + ret['amodal_offset'][:, :, 0:1]
+    ys = ys0.view(batch, K, 1) + ret['amodal_offset'][:, :, 1:2]
 
   if 'wh' in output:
     wh = output['wh']
@@ -156,16 +156,16 @@ def generic_decode(output, K=100, opt=None):
                         ys0.view(batch, K, 1) + ltrb[..., 3:4]], dim=2)
     ret['bboxes'] = bboxes
 
-  if 'ltrb_amodel' in output:
-    ltrb_amodel = output['ltrb_amodel']
-    ltrb_amodel = _tranpose_and_gather_feat(ltrb_amodel, inds) # B x K x 4
-    ltrb_amodel = ltrb_amodel.view(batch, K, 4)
-    bboxes_amodel = torch.cat([xs0.view(batch, K, 1) + ltrb_amodel[..., 0:1],
-                          ys0.view(batch, K, 1) + ltrb_amodel[..., 1:2],
-                          xs0.view(batch, K, 1) + ltrb_amodel[..., 2:3],
-                          ys0.view(batch, K, 1) + ltrb_amodel[..., 3:4]], dim=2)
-    ret['bboxes_amodel'] = bboxes_amodel
-    ret['bboxes'] = bboxes_amodel
+  if 'ltrb_amodal' in output:
+    ltrb_amodal = output['ltrb_amodal']
+    ltrb_amodal = _tranpose_and_gather_feat(ltrb_amodal, inds) # B x K x 4
+    ltrb_amodal = ltrb_amodal.view(batch, K, 4)
+    bboxes_amodal = torch.cat([xs0.view(batch, K, 1) + ltrb_amodal[..., 0:1],
+                          ys0.view(batch, K, 1) + ltrb_amodal[..., 1:2],
+                          xs0.view(batch, K, 1) + ltrb_amodal[..., 2:3],
+                          ys0.view(batch, K, 1) + ltrb_amodal[..., 3:4]], dim=2)
+    ret['bboxes_amodal'] = bboxes_amodal
+    ret['bboxes'] = bboxes_amodal
 
   if 'hps' in output:
     kps = output['hps']

@@ -60,9 +60,10 @@ def load_model(model, model_path, opt, optimizer=None):
       print('Drop parameter {}.'.format(k))
   for k in model_state_dict:
     if not (k in state_dict):
-      if k.split(".")[0] in ['cls']:
-        kk = k.replace('cls', 'hm')
+      if k.split(".")[0] in ['amodal_offset']:
+        kk = k.replace('amodal_offset', 'amodel_offset')
         state_dict[k] = state_dict[kk]
+        print('reuse amodal param instead of amodel param')
         continue
       print('No param {}.'.format(k))
       state_dict[k] = model_state_dict[k]

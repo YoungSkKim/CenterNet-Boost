@@ -151,7 +151,7 @@ def main():
             box.translate(np.array([0, box.wlh[2] / 2, 0]))
             category_id = CAT_IDS[det_name]
 
-            amodel_center = project_to_image(
+            amodal_center = project_to_image(
               np.array([box.center[0], box.center[1] - box.wlh[2] / 2, box.center[2]], 
                 np.float32).reshape(1, 3), calib)[0].tolist()
             sample_ann = nusc.get(
@@ -182,7 +182,7 @@ def main():
               'occluded': 0,
               'truncated': 0,
               'rotation_y': yaw,
-              'amodel_center': amodel_center,
+              'amodal_center': amodal_center,
               'iscrowd': 0,
               'track_id': track_id,
               'attributes': ATTRIBUTE_TO_ID[att],
@@ -228,7 +228,7 @@ def main():
               box_2d = project_to_image(box_3d, calib)
               img_3d = draw_box_3d(img_3d, box_2d)
 
-              pt_3d = unproject_2d_to_3d(ann['amodel_center'], ann['depth'], calib)
+              pt_3d = unproject_2d_to_3d(ann['amodal_center'], ann['depth'], calib)
               pt_3d[1] += ann['dim'][0] / 2
               print('location', ann['location'])
               print('loc model', pt_3d)

@@ -63,7 +63,7 @@ class GenericDataset(data.Dataset):
         split, ann_path, img_dir))
       self.coco = coco.COCO(ann_path)
 
-      if opt.nuscenes_CBGS and split == 'train':
+      if opt.nuscenes_CBGS and opt.dataset == 'nuscenes' and split == 'train':
         print('Class-balanced Grouping and Sampling')
         _nusc_infos = {k: set(v) for k, v in self.coco.catToImgs.items()}
         duplicated_samples = sum([len(v) for _, v in _nusc_infos.items()])
@@ -161,12 +161,13 @@ class GenericDataset(data.Dataset):
       if self.opt.discard_distant > 0:
         if ann['depth'] > self.opt.discard_distant:
           continue
-      bbox, bbox_amodel = self._get_bbox_output(
+      bbox, bbox_amodal = self._get_bbox_output(
         ann['bbox'], trans_output, height, width)
       if cls_id <= 0 or ('iscrowd' in ann and ann['iscrowd'] > 0):
         self._mask_ignore_or_crowd(ret, cls_id, bbox)
+        continue
       self._add_instance(
-        ret, gt_det, k, cls_id, bbox, bbox_amodel, ann, trans_output, aug_s,
+        ret, gt_det, k, cls_id, bbox, bbox_amodal, ann, trans_output, aug_s,
         calib, pre_cts, track_ids)
 
     if self.opt.auxdep:
@@ -425,8 +426,8 @@ class GenericDataset(data.Dataset):
         anns[k]['alpha'] = np.pi - anns[k]['alpha'] if anns[k]['alpha'] > 0 \
                            else - np.pi - anns[k]['alpha']
 
-      if 'amodel_offset' in self.opt.heads and 'amodel_center' in anns[k]:
-        anns[k]['amodel_center'][0] = width - anns[k]['amodel_center'][0] - 1
+      if 'amodal_offset' in self.opt.heads and 'amodal_center' in anns[k]:
+        anns[k]['amodal_center'][0] = width - anns[k]['amodal_center'][0] - 1
 
       if self.opt.velocity and 'velocity' in anns[k]:
         anns[k]['velocity'] = [-10000, -10000, -10000]
@@ -459,9 +460,9 @@ class GenericDataset(data.Dataset):
       ret['bboxes'] = np.zeros((max_objs, 4), dtype=np.float32)
 
     regression_head_dims = {
-      'reg': 2, 'wh': 2, 'tracking': 2, 'ltrb': 4, 'ltrb_amodel': 4,
+      'reg': 2, 'wh': 2, 'tracking': 2, 'ltrb': 4, 'ltrb_amodal': 4,
       'nuscenes_att': 8, 'velocity': 3, 'hps': self.num_joints * 2,
-      'dep': 1, 'dim': 3, 'amodel_offset': 2,
+      'dep': 1, 'dim': 3, 'amodal_offset': 2,
       'kp_t_offset': 2, 'kp_b_offset': 2}
 
     for head in regression_head_dims:
@@ -537,23 +538,23 @@ class GenericDataset(data.Dataset):
     bbox[:2] = rect[:, 0].min(), rect[:, 1].min()
     bbox[2:] = rect[:, 0].max(), rect[:, 1].max()
 
-    bbox_amodel = copy.deepcopy(bbox)
+    bbox_amodal = copy.deepcopy(bbox)
     bbox[[0, 2]] = np.clip(bbox[[0, 2]], 0, self.opt.output_w - 1)
     bbox[[1, 3]] = np.clip(bbox[[1, 3]], 0, self.opt.output_h - 1)
     h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
-    return bbox, bbox_amodel
+    return bbox, bbox_amodal
 
 
   def _add_instance(
-    self, ret, gt_det, k, cls_id, bbox, bbox_amodel, ann, trans_output,
+    self, ret, gt_det, k, cls_id, bbox, bbox_amodal, ann, trans_output,
     aug_s, calib, pre_cts=None, track_ids=None):
     h, w = bbox[3] - bbox[1], bbox[2] - bbox[0]
     if h <= 0 or w <= 0:
       return
     radius = gaussian_radius((math.ceil(h), math.ceil(w)))
     radius = max(0, int(radius))
-    if self.opt.set_amodal_center and 'amodel_center' in ann:
-      ct = affine_transform(ann['amodel_center'], trans_output)
+    if self.opt.set_amodal_center and 'amodal_center' in ann:
+      ct = affine_transform(ann['amodal_center'], trans_output)
       ct[0] = np.clip(ct[0], 0, self.opt.output_w - 1e-3)
       ct[1] = np.clip(ct[1], 0, self.opt.output_h - 1e-3)
       ct_2d = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
@@ -593,12 +594,12 @@ class GenericDataset(data.Dataset):
         bbox[2] - ct_int[0], bbox[3] - ct_int[1]
       ret['ltrb_mask'][k] = 1
 
-    if 'ltrb_amodel' in self.opt.heads:
-      ret['ltrb_amodel'][k] = \
-        bbox_amodel[0] - ct_int[0], bbox_amodel[1] - ct_int[1], \
-        bbox_amodel[2] - ct_int[0], bbox_amodel[3] - ct_int[1]
-      ret['ltrb_amodel_mask'][k] = 1
-      gt_det['ltrb_amodel'].append(bbox_amodel)
+    if 'ltrb_amodal' in self.opt.heads:
+      ret['ltrb_amodal'][k] = \
+        bbox_amodal[0] - ct_int[0], bbox_amodal[1] - ct_int[1], \
+        bbox_amodal[2] - ct_int[0], bbox_amodal[3] - ct_int[1]
+      ret['ltrb_amodal_mask'][k] = 1
+      gt_det['ltrb_amodal'].append(bbox_amodal)
 
     if 'nuscenes_att' in self.opt.heads:
       if ('attributes' in ann) and ann['attributes'] > 0:
@@ -635,17 +636,17 @@ class GenericDataset(data.Dataset):
       else:
         gt_det['dim'].append([1, 1, 1])
     
-    if 'amodel_offset' in self.opt.heads:
-      if 'amodel_center' in ann:
-        ret['amodel_offset_mask'][k] = 1
+    if 'amodal_offset' in self.opt.heads:
+      if 'amodal_center' in ann:
+        ret['amodal_offset_mask'][k] = 1
         if self.opt.set_amodal_center:
-          ret['amodel_offset'][k] = ct_2d - ct_int
+          ret['amodal_offset'][k] = ct_2d - ct_int
         else:
-          amodel_center = affine_transform(ann['amodel_center'], trans_output)
-          ret['amodel_offset'][k] = amodel_center - ct_int
-        gt_det['amodel_offset'].append(ret['amodel_offset'][k])
+          amodal_center = affine_transform(ann['amodal_center'], trans_output)
+          ret['amodal_offset'][k] = amodal_center - ct_int
+        gt_det['amodal_offset'].append(ret['amodal_offset'][k])
       else:
-        gt_det['amodel_offset'].append([0, 0])
+        gt_det['amodal_offset'].append([0, 0])
     
 
   def _add_hps(self, ret, k, ann, gt_det, trans_output, ct_int, bbox, h, w):
@@ -721,7 +722,7 @@ class GenericDataset(data.Dataset):
                 'cts': np.array([[0, 0]], dtype=np.float32),
                 'pre_cts': np.array([[0, 0]], dtype=np.float32),
                 'tracking': np.array([[0, 0]], dtype=np.float32),
-                'bboxes_amodel': np.array([[0, 0]], dtype=np.float32),
+                'bboxes_amodal': np.array([[0, 0]], dtype=np.float32),
                 'hps': np.zeros((1, 17, 2), dtype=np.float32),}
     gt_det = {k: np.array(gt_det[k], dtype=np.float32) for k in gt_det}
     return gt_det

@@ -17,8 +17,8 @@ class opts(object):
                              help='see lib/dataset/dataset_facotry for ' + 
                             'available datasets')
     self.parser.add_argument('--test_dataset', default='kitti',
-                             help='coco | kitti | coco_hp | pascal')
-    self.parser.add_argument('--exp_id', default='ddd/ablation/ns/ddd_ns_focaldep_0.5_1_5')
+                             help='coco | kitti | nuscenes | coco_hp | pascal')
+    self.parser.add_argument('--exp_id', default='test')
     # self.parser.add_argument('--load_model', default='../models/ddd_3dop.pth',
     # self.parser.add_argument('--load_model', default='../models/nuScenes_3Ddetection_e140.pth',
     self.parser.add_argument('--load_model', default='../exp/ddd/ablation/trial1/ddd_aux_dprop_1.0/model_60.pth',
@@ -177,7 +177,6 @@ class opts(object):
     self.parser.add_argument('--model_output_list', action='store_true',
                              help='Used when convert to onnx')
     self.parser.add_argument('--non_block_test', action='store_true')
-    # self.parser.add_argument('--vis_gt_bev', default='../vis/bird_pred_gt', help='')
     self.parser.add_argument('--vis_gt_bev', default='', help='')
     self.parser.add_argument('--kitti_split', default='3dop',
                              help='different validation split for kitti: 3dop | subcnn')
@@ -222,8 +221,8 @@ class opts(object):
     self.parser.add_argument('--track_thresh', type=float, default=0.3)
     self.parser.add_argument('--new_thresh', type=float, default=0.3)
     self.parser.add_argument('--max_frame_dist', type=int, default=3)
-    self.parser.add_argument('--ltrb_amodel', action='store_true')
-    self.parser.add_argument('--ltrb_amodel_weight', type=float, default=0.1)
+    self.parser.add_argument('--ltrb_amodal', action='store_true')
+    self.parser.add_argument('--ltrb_amodal_weight', type=float, default=0.1)
     self.parser.add_argument('--public_det', action='store_true')
     self.parser.add_argument('--no_pre_img', action='store_true')
     self.parser.add_argument('--zero_tracking', action='store_true')
@@ -244,8 +243,8 @@ class opts(object):
                              help='loss weight for human pose offset.')
     self.parser.add_argument('--hm_hp_weight', type=float, default=1,
                              help='loss weight for human keypoint heatmap.')
-    self.parser.add_argument('--amodel_offset_weight', type=float, default=1,
-                             help='Please forgive the typo.')
+    self.parser.add_argument('--amodal_offset_weight', type=float, default=1,
+                             help='loss weight for 3D amodal offset.')
     self.parser.add_argument('--dep_weight', type=float, default=1,
                              help='loss weight for depth.')
     self.parser.add_argument('--dim_weight', type=float, default=1,
@@ -259,9 +258,9 @@ class opts(object):
 
     # CenterNet-Boost configs
     self.parser.add_argument('--set_amodal_center', type=self.str2bool, default=True,
-                             help='set projected 3D center as center point if True,'
-                                  'use center of 2D bounding box if False.')
-    self.parser.add_argument('--discard_distant', type=float, default=60,
+                             help='set projected 3D center as keypoint if True,'
+                                  'use 2D bounding box center if False.')
+    self.parser.add_argument('--discard_distant', type=float, default=-1,
                              help='discard distant instance farther than certain range, set -1 to disable')
 
     self.parser.add_argument('--auxdep', type=self.str2bool, default=True,
@@ -413,7 +412,7 @@ class opts(object):
       opt.heads.update({'tracking': 2})
 
     if 'ddd' in opt.task:
-      opt.heads.update({'dep': 1, 'rot': 8, 'dim': 3, 'amodel_offset': 2})
+      opt.heads.update({'dep': 1, 'rot': 8, 'dim': 3, 'amodal_offset': 2})
     
     if 'multi_pose' in opt.task:
       opt.heads.update({
@@ -422,8 +421,8 @@ class opts(object):
 
     if opt.ltrb:
       opt.heads.update({'ltrb': 4})
-    if opt.ltrb_amodel:
-      opt.heads.update({'ltrb_amodel': 4})
+    if opt.ltrb_amodal:
+      opt.heads.update({'ltrb_amodal': 4})
     if opt.nuscenes_att:
       opt.heads.update({'nuscenes_att': 8})
     if opt.velocity:
@@ -436,10 +435,10 @@ class opts(object):
                    'hm_hp': opt.hm_hp_weight, 'hp_offset': opt.off_weight,
                    'dep': opt.dep_weight, 'rot': opt.rot_weight,
                    'dim': opt.dim_weight,
-                   'amodel_offset': opt.amodel_offset_weight,
+                   'amodal_offset': opt.amodal_offset_weight,
                    'ltrb': opt.ltrb_weight,
                    'tracking': opt.tracking_weight,
-                   'ltrb_amodel': opt.ltrb_amodel_weight,
+                   'ltrb_amodal': opt.ltrb_amodal_weight,
                    'nuscenes_att': opt.nuscenes_att_weight,
                    'velocity': opt.velocity_weight,
                    'auxdep': opt.auxdep_weight,

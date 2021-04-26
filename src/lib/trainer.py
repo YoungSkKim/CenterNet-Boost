@@ -101,8 +101,8 @@ class GenericLoss(torch.nn.Module):
           losses['depconf'] += loss.sum() / (batch['dep_mask'].sum() + 1e-4)
 
       regression_heads = [
-        'reg', 'wh', 'tracking', 'ltrb', 'ltrb_amodel', 'hps',
-        'dim', 'amodel_offset', 'velocity']
+        'reg', 'wh', 'tracking', 'ltrb', 'ltrb_amodal', 'hps',
+        'dim', 'amodal_offset', 'velocity']
 
       for head in regression_heads:
         if head in output:
@@ -240,8 +240,8 @@ class Trainer(object):
   
   def _get_losses(self, opt):
     loss_order = ['hm', 'cls', 'wh', 'reg', 'ltrb', 'hps', 'hm_hp', \
-      'hp_offset', 'dep', 'dim', 'rot', 'amodel_offset', 'auxdep', 'extdep', 'depconf',\
-      'ltrb_amodel', 'tracking', 'nuscenes_att', 'velocity']
+      'hp_offset', 'dep', 'dim', 'rot', 'amodal_offset', 'auxdep', 'extdep', 'depconf',\
+      'ltrb_amodal', 'tracking', 'nuscenes_att', 'velocity']
     loss_states = ['tot'] + [k for k in loss_order if k in opt.heads]
     if opt.auxdep: loss_states += ['auxdep']
     loss = GenericLoss(opt)
@@ -277,9 +277,9 @@ class Trainer(object):
           debugger.add_blend_img(pre_img, pre_hm, 'pre_hm')
 
       debugger.add_img(img, img_id='out_pred')
-      if 'ltrb_amodel' in opt.heads:
-        debugger.add_img(img, img_id='out_pred_amodel')
-        debugger.add_img(img, img_id='out_gt_amodel')
+      if 'ltrb_amodal' in opt.heads:
+        debugger.add_img(img, img_id='out_pred_amodal')
+        debugger.add_img(img, img_id='out_gt_amodal')
 
       # Predictions
       for k in range(len(dets['scores'][i])):
@@ -288,10 +288,10 @@ class Trainer(object):
             dets['bboxes'][i, k] * opt.down_ratio, dets['clses'][i, k],
             dets['scores'][i, k], img_id='out_pred')
 
-          if 'ltrb_amodel' in opt.heads:
+          if 'ltrb_amodal' in opt.heads:
             debugger.add_coco_bbox(
-              dets['bboxes_amodel'][i, k] * opt.down_ratio, dets['clses'][i, k],
-              dets['scores'][i, k], img_id='out_pred_amodel')
+              dets['bboxes_amodal'][i, k] * opt.down_ratio, dets['clses'][i, k],
+              dets['scores'][i, k], img_id='out_pred_amodal')
 
           if 'hps' in opt.heads and int(dets['clses'][i, k]) == 0:
             debugger.add_coco_hp(
@@ -313,11 +313,11 @@ class Trainer(object):
             dets_gt['bboxes'][i][k] * opt.down_ratio, dets_gt['clses'][i][k],
             dets_gt['scores'][i][k], img_id='out_gt')
 
-          if 'ltrb_amodel' in opt.heads:
+          if 'ltrb_amodal' in opt.heads:
             debugger.add_coco_bbox(
-              dets_gt['bboxes_amodel'][i, k] * opt.down_ratio,
+              dets_gt['bboxes_amodal'][i, k] * opt.down_ratio,
               dets_gt['clses'][i, k],
-              dets_gt['scores'][i, k], img_id='out_gt_amodel')
+              dets_gt['scores'][i, k], img_id='out_gt_amodal')
 
           if 'hps' in opt.heads and \
             (int(dets['clses'][i, k]) == 0):
