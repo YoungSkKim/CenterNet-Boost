@@ -116,10 +116,10 @@ class opts(object):
     self.parser.add_argument('--dataset_version', default='')
 
     # train
-    self.parser.add_argument('--optim', default='adam')
+    self.parser.add_argument('--optim', default='adamw')
     self.parser.add_argument('--lr', type=float, default=1.25e-4,
                              help='learning rate for batch size 32.')
-    self.parser.add_argument('--weight_decay', type=float, default=0)
+    self.parser.add_argument('--weight_decay', type=float, default=0.01)
     self.parser.add_argument('--lr_warmup', type=self.str2bool, default=False,
                              help='warmup learning rate.')
     self.parser.add_argument('--lr_warmup_epoch', type=float, default=1,

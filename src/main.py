@@ -20,8 +20,9 @@ from trainer import Trainer
 def get_optimizer(opt, model):
   if opt.optim == 'adam':
     optimizer = torch.optim.Adam(model.parameters(), opt.lr, weight_decay=opt.weight_decay)
+  elif opt.optim == 'adamw':
+    optimizer = torch.optim.AdamW(model.parameters(), opt.lr, weight_decay=opt.weight_decay)
   elif opt.optim == 'sgd':
-    print('Using SGD')
     optimizer = torch.optim.SGD(
       model.parameters(), opt.lr, momentum=0.9, weight_decay=0.0001)
   else:
@@ -43,6 +44,7 @@ def main(opt):
   model = create_model(opt.arch, opt.heads, opt.head_conv, opt=opt)
 
   if opt.freeze_weight:
+    print('freeze model')
     for name, child in model.named_children():
         if name in opt.freeze_weight_skip:
           print('Skip freezing', name)
