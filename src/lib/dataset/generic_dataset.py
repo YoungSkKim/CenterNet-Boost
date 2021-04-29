@@ -158,14 +158,14 @@ class GenericDataset(data.Dataset):
       cls_id = int(self.cat_ids[ann['category_id']])
       if cls_id > self.opt.num_classes or cls_id <= -999:
         continue
-      if self.opt.discard_distant > 0:
-        if ann['depth'] > self.opt.discard_distant:
-          continue
       bbox, bbox_amodal = self._get_bbox_output(
         ann['bbox'], trans_output, height, width)
       if cls_id <= 0 or ('iscrowd' in ann and ann['iscrowd'] > 0):
         self._mask_ignore_or_crowd(ret, cls_id, bbox)
         continue
+      if (self.opt.discard_distant > 0) and (ann['depth'] > self.opt.discard_distant):
+          self._mask_ignore_or_crowd(ret, cls_id, bbox)
+          continue
       self._add_instance(
         ret, gt_det, k, cls_id, bbox, bbox_amodal, ann, trans_output, aug_s,
         calib, pre_cts, track_ids)
