@@ -148,7 +148,7 @@ class ModleWithLoss(torch.nn.Module):
   def forward(self, batch):
     pre_img = batch['pre_img'] if 'pre_img' in batch else None
     pre_hm = batch['pre_hm'] if 'pre_hm' in batch else None
-    outputs = self.model(batch['image'], pre_img, pre_hm, is_trainer=True)
+    outputs = self.model(batch['image'], pre_img, pre_hm)
     loss, loss_stats = self.loss(outputs, batch)
     return outputs[-1], loss, loss_stats
 
