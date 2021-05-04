@@ -269,14 +269,14 @@ class opts(object):
                              help='loss weight for auxiliary depth.')
     self.parser.add_argument('--auxdep_offset', type=float, default=1.5,
                              help='add offset to depth annotation.')
-    self.parser.add_argument('--auxdep_ratio', type=float, default=0.5,
+    self.parser.add_argument('--auxdep_ratio', type=float, default=0.1,
                              help='random point sampling ratio.')
     self.parser.add_argument('--auxdep_mask', type=self.str2bool, default=True,
                              help='foreground object mask')
 
     self.parser.add_argument('--focaldep', type=self.str2bool, default=True,
                              help='enable focal depth loss.')
-    self.parser.add_argument('--focaldep_alpha', type=float, default=0.5,
+    self.parser.add_argument('--focaldep_alpha', type=float, default=1,
                              help='balancing parameter.')
     self.parser.add_argument('--focaldep_gamma', type=float, default=2,
                              help='balancing parameter.')
@@ -288,7 +288,7 @@ class opts(object):
     self.parser.add_argument('--depconf_beta', type=float, default=2.0,
                              help='balancing parameter.')
 
-    self.parser.add_argument('--deperror_clamp', type=str, default='0.1,1',
+    self.parser.add_argument('--deperror_clamp', type=str, default='0.2,1',
                              help='clamp depth error for training stability.')
 
     # configs for experiments
