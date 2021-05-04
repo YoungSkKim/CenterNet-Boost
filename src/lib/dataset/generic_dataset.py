@@ -171,10 +171,7 @@ class GenericDataset(data.Dataset):
         calib, pre_cts, track_ids)
 
     if self.opt.auxdep:
-      if self.opt.dataset == 'kitti':
-        depth = self._load_depth_data(img_path, 'depth_gt')
-      elif self.opt.dataset == 'nuscenes':
-        depth = self._load_depth_data_nuscenes(img_info)
+      depth = self._load_depth_data(img_path, img_info)
       depth, depth_mask = self._get_depth_anno(depth, ret, trans_input, aug_s, flipped)
       ret['auxdep'] = depth
       ret['auxdep_mask'] = depth_mask
@@ -214,20 +211,13 @@ class GenericDataset(data.Dataset):
     return img, anns, img_info, img_path
 
 
-  def _load_depth_data(self, img_path, depth_path):
-    depth_path = img_path.replace('image_2', depth_path)
+  def _load_depth_data(self, img_path, img_info):
+    if self.opt.dataset == 'kitti':
+      depth_path = img_path.replace('image_2', 'depth_gt')
+    elif self.opt.dataset == 'nuscenes':  # TODO: change depth path for nuscenes
+      depth_path = os.path.join(self.opt.data_dir, 'nuscenes/object_trainval/training/depth_gt/%06d.png'%
+                                (self.num_tot_sample*img_info['sensor_id'] + img_info['local_id']))
     depth = cv2.imread(depth_path, cv2.IMREAD_ANYDEPTH)
-    return depth
-
-
-  def _load_depth_data_nuscenes(self, img_info): # TODO: change depth path for nuscenes
-    depth_path = os.path.join(self.opt.data_dir, 'nuscenes/object_trainval/training/depth_gt/%06d.png'%
-                              (self.num_tot_sample*img_info['sensor_id'] + img_info['local_id']))
-    depth = cv2.imread(depth_path, cv2.IMREAD_ANYDEPTH)
-    if depth is None:
-      depth_path = os.path.join(self.opt.data_dir, 'nuscenes/object_trainval/validation/depth_gt/%06d.png'%
-                              (self.num_tot_sample*img_info['sensor_id'] + img_info['local_id']))
-      depth = cv2.imread(depth_path, cv2.IMREAD_ANYDEPTH)
     return depth
 
 
