@@ -206,9 +206,10 @@ class opts(object):
     self.parser.add_argument('--no_color_aug', action='store_true',
                              help='not use the color augmenation from CornerNet')
     self.parser.add_argument('--nuscenes_interval', type=int, default=1,
-                             help='data sampling ratio for faster training')
+                             help='sampling dataset for faster training on nuScenes')
     self.parser.add_argument('--nuscenes_CBGS', type=self.str2bool, default=True,
-                             help='data sampling ratio for faster training')
+                             help='Class-Balanced Grouping and Sampling(CBGS) on nuScenes')
+
     # tracking
     self.parser.add_argument('--tracking', action='store_true')
     self.parser.add_argument('--pre_hm', action='store_true')
@@ -257,22 +258,22 @@ class opts(object):
     self.parser.add_argument('--velocity_weight', type=float, default=1)
 
     # CenterNet-Boost configs
-    self.parser.add_argument('--set_amodal_center', type=self.str2bool, default=True,
-                             help='set projected 3D center as keypoint if True,'
+    self.parser.add_argument('--use_amodal_center', type=self.str2bool, default=True,
+                             help='use projected 3D center as keypoint if True,'
                                   'use 2D bounding box center if False.')
     self.parser.add_argument('--discard_distant', type=float, default=-1,
                              help='discard distant instance farther than certain range, set -1 to disable')
 
     self.parser.add_argument('--auxdep', type=self.str2bool, default=True,
                              help='enable auxiliary depth prediction loss.')
+    self.parser.add_argument('--auxdep_mask', type=self.str2bool, default=True,
+                             help='foreground object mask')
     self.parser.add_argument('--auxdep_weight', type=float, default=1,
                              help='loss weight for auxiliary depth.')
     self.parser.add_argument('--auxdep_offset', type=float, default=1.5,
                              help='add offset to depth annotation.')
     self.parser.add_argument('--auxdep_ratio', type=float, default=0.1,
                              help='random point sampling ratio.')
-    self.parser.add_argument('--auxdep_mask', type=self.str2bool, default=True,
-                             help='foreground object mask')
 
     self.parser.add_argument('--focaldep', type=self.str2bool, default=True,
                              help='enable focal depth loss.')
@@ -287,8 +288,7 @@ class opts(object):
                              help='loss weight for depth uncertainty prediction.')
     self.parser.add_argument('--depconf_beta', type=float, default=2.0,
                              help='balancing parameter.')
-
-    self.parser.add_argument('--deperror_clamp', type=str, default='0.2,1',
+    self.parser.add_argument('--depconf_clamp', type=str, default='0.2,1',
                              help='clamp depth error for training stability.')
 
     # configs for experiments
@@ -335,7 +335,7 @@ class opts(object):
     opt.ignore_loaded_cats = \
       [int(i) for i in opt.ignore_loaded_cats.split(',')] \
       if opt.ignore_loaded_cats != '' else []
-    opt.deperror_clamp = [float(i) for i in opt.deperror_clamp.split(',')]
+    opt.depconf_clamp = [float(i) for i in opt.depconf_clamp.split(',')]
     opt.reuse_hm_order = [int(i) for i in opt.reuse_hm_order.split(',')]
 
     opt.pre_img = False

@@ -73,7 +73,7 @@ class GenericLoss(torch.nn.Module):
         dep_gt = batch['dep']
         loss = self.l1loss(dep_pred * batch['dep_mask'], dep_gt * batch['dep_mask'])
         if opt.focaldep:
-          dep_delta = torch.clamp(torch.abs(dep_pred - dep_gt), 0, opt.deperror_clamp[1])
+          dep_delta = torch.clamp(torch.abs(dep_pred - dep_gt), 0, opt.depconf_clamp[1])
           target = torch.pow((1 + opt.focaldep_alpha * dep_delta / (dep_gt + 1e-4)), opt.focaldep_gamma)
           loss = loss * target
         losses['dep'] += loss.sum() / (batch['dep_mask'].sum() + 1e-4)
@@ -87,14 +87,14 @@ class GenericLoss(torch.nn.Module):
         if opt.auxdep:
           dep_delta = torch.abs(output['dep'].squeeze()*batch['auxdep_mask'] - \
                                 batch['auxdep'].squeeze()*batch['auxdep_mask'])
-          target = torch.clamp(dep_delta, opt.deperror_clamp[0], opt.deperror_clamp[1])
-          target = torch.exp(-1*opt.depconf_beta*(target-opt.deperror_clamp[0]))
+          target = torch.clamp(dep_delta, opt.depconf_clamp[0], opt.depconf_clamp[1])
+          target = torch.exp(-1*opt.depconf_beta*(target-opt.depconf_clamp[0]))
           pred = output['depconf'].squeeze(1)
           loss = self.l1loss(pred * batch['auxdep_mask'], target * batch['auxdep_mask'])
           losses['depconf'] += loss.sum() / (batch['auxdep_mask'].sum() + 1e-4)
         else:
           dep_delta = torch.abs(_tranpose_and_gather_feat(output['dep'], batch['ind']) - batch['dep'])
-          target = torch.clamp(dep_delta, opt.deperror_clamp[0], opt.deperror_clamp[1])
+          target = torch.clamp(dep_delta, opt.depconf_clamp[0], opt.depconf_clamp[1])
           target = torch.exp(-1*opt.depconf_beta*target)
           pred = _tranpose_and_gather_feat(output['depconf'], batch['ind'])
           loss = self.l1loss(pred * batch['dep_mask'], target * batch['dep_mask'])

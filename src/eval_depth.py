@@ -10,7 +10,7 @@ sys.path.append("./lib/model/networks/DCNv2")
 
 import torch
 import torch.utils.data
-from opts_kitti import opts
+from opts import opts
 from model.model import create_model, load_model, save_model
 from model.data_parallel import DataParallel
 from logger import Logger
@@ -18,14 +18,7 @@ from dataset.dataset_factory import get_dataset
 from trainer import Trainer
 
 def get_optimizer(opt, model):
-  if opt.optim == 'adam':
-    optimizer = torch.optim.Adam(model.parameters(), opt.lr, weight_decay=opt.weight_decay)
-  elif opt.optim == 'sgd':
-    print('Using SGD')
-    optimizer = torch.optim.SGD(
-      model.parameters(), opt.lr, momentum=0.9, weight_decay=0.0001)
-  else:
-    assert 0, opt.optim
+  optimizer = torch.optim.Adam(model.parameters(), opt.lr, weight_decay=opt.weight_decay)
   return optimizer
 
 def main(opt):

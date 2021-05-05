@@ -543,7 +543,7 @@ class GenericDataset(data.Dataset):
       return
     radius = gaussian_radius((math.ceil(h), math.ceil(w)))
     radius = max(0, int(radius))
-    if self.opt.set_amodal_center and 'amodal_center' in ann:
+    if self.opt.use_amodal_center and 'amodal_center' in ann:
       ct = affine_transform(ann['amodal_center'], trans_output)
       ct[0] = np.clip(ct[0], 0, self.opt.output_w - 1e-3)
       ct[1] = np.clip(ct[1], 0, self.opt.output_h - 1e-3)
@@ -629,7 +629,7 @@ class GenericDataset(data.Dataset):
     if 'amodal_offset' in self.opt.heads:
       if 'amodal_center' in ann:
         ret['amodal_offset_mask'][k] = 1
-        if self.opt.set_amodal_center:
+        if self.opt.use_amodal_center:
           ret['amodal_offset'][k] = ct_2d - ct_int
         else:
           amodal_center = affine_transform(ann['amodal_center'], trans_output)

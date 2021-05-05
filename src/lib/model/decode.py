@@ -123,7 +123,7 @@ def generic_decode(output, K=100, opt=None):
     xs = xs0.view(batch, K, 1) + 0.5
     ys = ys0.view(batch, K, 1) + 0.5
 
-  if opt.set_amodal_center:
+  if opt.use_amodal_center:
     ret['amodal_center'] = torch.cat([xs, ys], dim=2)
     xs = xs0.view(batch, K, 1) + ret['amodal_offset'][:, :, 0:1]
     ys = ys0.view(batch, K, 1) + ret['amodal_offset'][:, :, 1:2]

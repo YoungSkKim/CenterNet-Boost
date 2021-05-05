@@ -67,7 +67,7 @@ def generic_post_process(
       
       if 'rot' in dets and 'dep' in dets and 'dim' in dets \
         and len(dets['dep'][i]) > j:
-        if opt.set_amodal_center:
+        if opt.use_amodal_center:
           amodal_ct_output = dets['amodal_center'][i][j]
           ct = transform_preds_with_trans(
             amodal_ct_output.reshape(1, 2), trans).reshape(2).tolist()
