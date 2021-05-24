@@ -2,21 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import torch
 from torch import nn
-from torchvision.ops import roi_align, nms, roi_pool
-
-from model.decode import generic_decode
-from model.utils import _sigmoid
-
-def _sigmoid_output(output):
-    if 'hm' in output:
-        output['hm'] = _sigmoid(output['hm'])
-    # if 'cls' in output:
-    #     output['cls'] = _sigmoid(output['cls'])
-    if 'dep' in output:
-      output['dep'] = 1. / (output['dep'].sigmoid() + 1e-6) - 1.
-    return output
 
 def fill_fc_weights(layers):
     for m in layers.modules():
