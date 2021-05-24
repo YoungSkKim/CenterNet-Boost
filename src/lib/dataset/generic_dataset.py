@@ -179,7 +179,7 @@ class GenericDataset(data.Dataset):
     if self.opt.debug > 0 or self.opt.eval_depth:
       gt_det = self._format_gt_det(gt_det)
       meta = {'c': c, 's': s, 'gt_det': gt_det, 'img_id': img_info['id'],
-              'img_path': img_path, 'calib': calib,
+              'img_path': img_path, 'calib': calib, 'trans_input': trans_input,
               'flipped': flipped}
       ret['meta'] = meta
     return ret

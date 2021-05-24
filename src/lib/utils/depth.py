@@ -67,9 +67,13 @@ def eval_depth(batch, output, metrics_all, metrics_obj):
     depth_gt_obj = batch['auxdep'] * batch['auxdep_mask'][:, :, :, 1].unsqueeze(0)
 
     # eval DORN
+    # import cv2
+    # import numpy as np
     # depth_dorn_path = '/home/user/data/Dataset/KITTI/training/dorn/%06d.png'%batch['meta']['img_id'][0].numpy()
     # depth_dorn = cv2.imread(depth_dorn_path, cv2.IMREAD_ANYDEPTH)
     # depth_dorn = (depth_dorn / 256.).astype(np.float32)
+    # depth_dorn = cv2.warpAffine(depth_dorn, batch['meta']['trans_input'][0].detach().cpu().numpy(),
+    #             (1280, 384), flags=cv2.INTER_LINEAR)
     # depth_dorn = torch.from_numpy(depth_dorn).unsqueeze(0).unsqueeze(0).to('cuda:0')
     # metrics_all.append(compute_depth_metrics(depth_gt_all, depth_dorn))
     # metrics_obj.append(compute_depth_metrics(depth_gt_obj, depth_dorn))
