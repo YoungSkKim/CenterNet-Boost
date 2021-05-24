@@ -18,11 +18,8 @@ class opts(object):
                             'available datasets')
     self.parser.add_argument('--test_dataset', default='kitti',
                              help='coco | kitti | nuscenes | coco_hp | pascal')
-    self.parser.add_argument('--exp_id', default='test')
-    # self.parser.add_argument('--load_model', default='../models/ddd_3dop.pth',
-    # self.parser.add_argument('--load_model', default='../models/nuScenes_3Ddetection_e140.pth',
-    self.parser.add_argument('--load_model', default='../exp/ddd/ablation/trial1/ddd_aux_dprop_1.0/model_60.pth',
-    # self.parser.add_argument('--load_model', default='',
+    self.parser.add_argument('--exp_id', default='default')
+    self.parser.add_argument('--load_model', default='../models/ddd_3dop_boost.pth',
                              help='path to pretrained model')
     self.parser.add_argument('--test', action='store_true')
     self.parser.add_argument('--debug', type=int, default=0,
@@ -42,7 +39,7 @@ class opts(object):
                                   'in the exp dir if load_model is empty.')
 
     # system
-    self.parser.add_argument('--gpus', default='0',
+    self.parser.add_argument('--gpus', default='0,1,2,3',
                              help='-1 for CPU, use comma for multiple gpus')
     self.parser.add_argument('--num_workers', type=int, default=16,
                              help='dataloader threads. 0 for single-thread.')
@@ -132,7 +129,7 @@ class opts(object):
                              help='when to save the model to disk.')
     self.parser.add_argument('--num_epochs', type=int, default=70,
                              help='total training epochs.')
-    self.parser.add_argument('--batch_size', type=int, default=1,
+    self.parser.add_argument('--batch_size', type=int, default=32,
                              help='batch size')
     self.parser.add_argument('--master_batch_size', type=int, default=-1,
                              help='batch size on the master gpu.')
@@ -261,8 +258,9 @@ class opts(object):
     self.parser.add_argument('--use_amodal_center', type=self.str2bool, default=True,
                              help='use projected 3D center as keypoint if True,'
                                   'use 2D bounding box center if False.')
-    self.parser.add_argument('--discard_distant', type=float, default=-1,
-                             help='discard distant instance farther than certain range, set -1 to disable')
+    self.parser.add_argument('--discard_distant', type=float, default=55,
+                             help='discard distant instance farther than certain range,'
+                                  '-1 to disable')
 
     self.parser.add_argument('--auxdep', type=self.str2bool, default=True,
                              help='enable auxiliary depth prediction loss.')
@@ -270,7 +268,7 @@ class opts(object):
                              help='foreground object mask')
     self.parser.add_argument('--auxdep_weight', type=float, default=1,
                              help='loss weight for auxiliary depth.')
-    self.parser.add_argument('--auxdep_offset', type=float, default=1.5,
+    self.parser.add_argument('--auxdep_offset', type=float, default=1.6,
                              help='add offset to depth annotation.')
     self.parser.add_argument('--auxdep_ratio', type=float, default=0.1,
                              help='random point sampling ratio.')
