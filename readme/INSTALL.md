@@ -1,19 +1,19 @@
 # Installation
 
 
-The code was tested on Ubuntu 16.04, with [Anaconda](https://www.anaconda.com/download) Python 3.6, CUDA 10.0, and [PyTorch]((http://pytorch.org/)) v1.0.
-It should be compatible with PyTorch <=1.4 and python >=0.4 (you will need to switch DCNv2 version for PyTorch <1.0).
+The code was tested on Ubuntu 16.04, with [Anaconda](https://www.anaconda.com/download) Python 3.8, CUDA 11.0, and [PyTorch]((http://pytorch.org/)) v1.7.1.
+(you will need to switch DCNv2 version for PyTorch <1.0).
 After installing Anaconda:
 
 0. [Optional but highly recommended] create a new conda environment. 
 
     ~~~
-    conda create --name CenterTrack python=3.6
+    conda create --name CenterNet-Boost python=3.8
     ~~~
     And activate the environment.
     
     ~~~
-    conda activate CenterTrack
+    conda activate CenterNet-Boost
     ~~~
 
 1. Install PyTorch:
@@ -32,8 +32,8 @@ After installing Anaconda:
 3. Clone this repo:
 
     ~~~
-    CenterTrack_ROOT=/path/to/clone/CenterTrack
-    git clone --recursive https://github.com/xingyizhou/CenterTrack $CenterTrack_ROOT
+    CenterTrack_ROOT=/path/to/clone/CenterNet-Boost
+    git clone --recursive https://github.com/YoungSkKim/CenterNet-Boost $CenterNet-Boost_ROOT
     ~~~
 
     You can manually install the [submodules](../.gitmodules) if you forget `--recursive`.
@@ -54,4 +54,4 @@ After installing Anaconda:
     ./make.sh
     ~~~
 
-6. Download pertained models for [monocular 3D tracking](https://drive.google.com/open?id=1e8zR1m1QMJne-Tjp-2iY_o81hn2CiQRt), [80-category tracking](https://drive.google.com/open?id=1tJCEJmdtYIh8VuN8CClGNws3YO7QGd40), or [pose tracking](https://drive.google.com/open?id=1H0YvFYCOIZ06EzAkC2NxECNQGXxK27hH) and move them to `$CenterTrack_ROOT/models/`. More models can be found in [Model zoo](MODEL_ZOO.md).
+6. Download pertained models for [KITTI](https://drive.google.com/file/d/11BuB6LMfl3IaOLNiJzZ-nNsf92h7YPdN/view?usp=sharing) or [nuScenes](https://drive.google.com/file/d/1-DlkIecN-R1VXj3l0_vxclPf-H7sfYnJ/view?usp=sharing) and move them to `$CenterNet-Boost_ROOT/models/`. More models can be found in [Model zoo](MODEL_ZOO.md).
